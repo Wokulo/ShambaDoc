@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ShambaDoc Launch Console</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #15231a;
+        --muted: #5f6f65;
+        --line: #d9e4dc;
+        --field: #f4f8f2;
+        --leaf: #1f7a45;
+        --soil: #7a4f2b;
+        --sun: #e1a11a;
+        --sky: #dcebf2;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          linear-gradient(180deg, rgba(220, 235, 242, 0.84), rgba(244, 248, 242, 0.92)),
+          var(--field);
+      }
+
+      .shell {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 14px 0 28px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 800;
+        font-size: 20px;
+      }
+
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        background:
+          radial-gradient(circle at 62% 30%, #f3cf63 0 12%, transparent 13%),
+          linear-gradient(135deg, var(--leaf), #49a363 54%, #c7df8a 55% 100%);
+        box-shadow: inset 0 0 0 1px rgba(21, 35, 26, 0.12);
+      }
+
+      nav {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .nav-link,
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0 14px;
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.74);
+        font-weight: 700;
+      }
+
+      .button.primary {
+        color: var(--white);
+        background: var(--leaf);
+        border-color: var(--leaf);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+        gap: 28px;
+        align-items: stretch;
+        min-height: 420px;
+      }
+
+      .intro {
+        padding: 38px 0;
+      }
+
+      .eyebrow {
+        margin: 0 0 14px;
+        color: var(--soil);
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 760px;
+        font-size: clamp(42px, 8vw, 82px);
+        line-height: 0.94;
+        letter-spacing: 0;
+      }
+
+      .lead {
+        max-width: 620px;
+        margin: 22px 0 0;
+        font-size: 19px;
+        line-height: 1.65;
+        color: var(--muted);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .phone {
+        position: relative;
+        min-height: 420px;
+        border-radius: 8px;
+        overflow: hidden;
+        background:
+          linear-gradient(160deg, rgba(31, 122, 69, 0.12), rgba(122, 79, 43, 0.14)),
+          #eef5ec;
+        border: 1px solid var(--line);
+      }
+
+      .phone::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(22deg, transparent 0 38%, rgba(31, 122, 69, 0.32) 39% 42%, transparent 43%),
+          linear-gradient(162deg, transparent 0 54%, rgba(122, 79, 43, 0.22) 55% 58%, transparent 59%),
+          repeating-linear-gradient(90deg, rgba(31, 122, 69, 0.08) 0 2px, transparent 2px 26px);
+      }
+
+      .mock-device {
+        position: absolute;
+        right: 44px;
+        bottom: 28px;
+        width: min(280px, 70%);
+        height: 350px;
+        border-radius: 30px;
+        padding: 14px;
+        background: #172119;
+        box-shadow: 0 24px 70px rgba(21, 35, 26, 0.2);
+      }
+
+      .screen {
+        height: 100%;
+        border-radius: 20px;
+        overflow: hidden;
+        background: var(--white);
+      }
+
+      .scan-view {
+        height: 142px;
+        background:
+          radial-gradient(circle at 32% 44%, #a3c15f 0 12%, transparent 13%),
+          radial-gradient(circle at 58% 55%, #4f8a47 0 16%, transparent 17%),
+          linear-gradient(135deg, #d6e9cf, #8bb377);
+      }
+
+      .result-view {
+        padding: 16px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 800;
+        background: #e9f6ee;
+        color: var(--leaf);
+      }
+
+      .mock-title {
+        margin: 14px 0 8px;
+        font-size: 22px;
+        font-weight: 850;
+      }
+
+      .confidence {
+        height: 10px;
+        border-radius: 999px;
+        background: #e8eee9;
+        overflow: hidden;
+      }
+
+      .confidence span {
+        display: block;
+        width: 86%;
+        height: 100%;
+        background: var(--leaf);
+      }
+
+      .treatment {
+        margin-top: 16px;
+        border: 1px solid #efdca4;
+        border-radius: 8px;
+        padding: 12px;
+        background: #fff7df;
+        color: #60440e;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .section-title {
+        margin: 34px 0 14px;
+        font-size: 24px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .card {
+        min-height: 156px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 17px;
+      }
+
+      .card p {
+        margin: 0 0 16px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .status {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .metric {
+        border-left: 4px solid var(--leaf);
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 22px;
+      }
+
+      .metric span {
+        color: var(--muted);
+      }
+
+      footer {
+        margin-top: 36px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      @media (max-width: 860px) {
+        header,
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .intro {
+          padding: 18px 0 0;
+        }
+
+        .grid,
+        .status {
+          grid-template-columns: 1fr;
+        }
+
+        .phone {
+          min-height: 360px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>ShambaDoc</span>
+        </div>
+        <nav aria-label="Project navigation">
+          <a class="nav-link" href="./README.md">README</a>
+          <a class="nav-link" href="./docs/go_live.md">Go-Live Guide</a>
+          <a class="nav-link" href="./backend/">Backend</a>
+          <a class="nav-link" href="./mobile/">Mobile</a>
+        </nav>
+      </header>
+
+      <section class="hero" aria-labelledby="page-title">
+        <div class="intro">
+          <p class="eyebrow">Launch console</p>
+          <h1 id="page-title">ShambaDoc</h1>
+          <p class="lead">
+            Offline-first crop disease diagnosis for Kenyan smallholder farmers.
+            Use this page as the local project entry point while the Flutter app
+            and Node API are prepared for launch.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="./docs/software_design.md">Open Blueprint</a>
+            <a class="button" href="http://127.0.0.1:3000/health">Check Local API</a>
+            <a class="button" href="https://github.com/Wokulo/ShambaDoc">GitHub Repo</a>
+          </div>
+        </div>
+
+        <div class="phone" aria-label="ShambaDoc diagnosis preview">
+          <div class="mock-device">
+            <div class="screen">
+              <div class="scan-view"></div>
+              <div class="result-view">
+                <span class="pill">High confidence</span>
+                <div class="mock-title">Late Blight</div>
+                <div class="confidence" aria-hidden="true"><span></span></div>
+                <div class="treatment">
+                  Apply recommended fungicide within 48 hours. Save the scan and
+                  contact the nearest agro-dealer for available treatment.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="quick-links-title">
+        <h2 class="section-title" id="quick-links-title">Quick Links</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Backend API</h3>
+            <p>Node.js service for scan logging, feedback, dealers, and heatmaps.</p>
+            <a class="button" href="./backend/src/index.js">Open API</a>
+          </article>
+          <article class="card">
+            <h3>Mobile App</h3>
+            <p>Flutter app with camera scan, local history, map, and AI flow.</p>
+            <a class="button" href="./mobile/lib/main.dart">Open Mobile</a>
+          </article>
+          <article class="card">
+            <h3>Go Live</h3>
+            <p>Deployment guide for Render, PostgreSQL, Firebase, and APK builds.</p>
+            <a class="button" href="./docs/go_live.md">Open Guide</a>
+          </article>
+          <article class="card">
+            <h3>Architecture</h3>
+            <p>Full product design, roadmap, data model, and launch criteria.</p>
+            <a class="button" href="./docs/software_design.md">Open Design</a>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="status-title">
+        <h2 class="section-title" id="status-title">Launch Status</h2>
+        <div class="status">
+          <div class="metric">
+            <strong>Mobile</strong>
+            <span>Flutter source ready for Android setup</span>
+          </div>
+          <div class="metric">
+            <strong>API</strong>
+            <span>Express backend prepared for deployment</span>
+          </div>
+          <div class="metric">
+            <strong>Database</strong>
+            <span>PostgreSQL schema includes V2 roadmap tables</span>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        Open this page with Live Server from the project root. Run the backend
+        separately from the <code>backend</code> folder to enable the local API
+        health check.
+      </footer>
+    </main>
+  </body>
+</html>
