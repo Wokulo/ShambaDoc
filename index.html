@@ -3,77 +3,109 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ShambaDoc Launch Console</title>
+    <title>ShambaDoc</title>
     <style>
       :root {
         color-scheme: light;
-        --ink: #15231a;
-        --muted: #5f6f65;
-        --line: #d9e4dc;
-        --field: #f4f8f2;
-        --leaf: #1f7a45;
-        --soil: #7a4f2b;
-        --sun: #e1a11a;
-        --sky: #dcebf2;
-        --white: #ffffff;
+        --ink: #102018;
+        --muted: #627268;
+        --soft: #edf5ef;
+        --panel: #ffffff;
+        --line: #d6e2da;
+        --leaf: #187648;
+        --leaf-dark: #0e4f31;
+        --mint: #dff1e6;
+        --amber: #d9901a;
+        --amber-soft: #fff4d9;
+        --blue-soft: #e4f0f5;
+        --danger: #b7442d;
+        --shadow: 0 18px 48px rgba(31, 62, 43, 0.12);
       }
 
       * {
         box-sizing: border-box;
       }
 
+      html {
+        scroll-behavior: smooth;
+      }
+
       body {
         margin: 0;
         min-height: 100vh;
         font-family:
-          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-          "Segoe UI", sans-serif;
+          ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
         color: var(--ink);
-        background:
-          linear-gradient(180deg, rgba(220, 235, 242, 0.84), rgba(244, 248, 242, 0.92)),
-          var(--field);
-      }
-
-      .shell {
-        width: min(1120px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 28px 0 40px;
-      }
-
-      header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 20px;
-        padding: 14px 0 28px;
-      }
-
-      .brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        font-weight: 800;
-        font-size: 20px;
-      }
-
-      .brand-mark {
-        width: 42px;
-        height: 42px;
-        border-radius: 8px;
-        background:
-          radial-gradient(circle at 62% 30%, #f3cf63 0 12%, transparent 13%),
-          linear-gradient(135deg, var(--leaf), #49a363 54%, #c7df8a 55% 100%);
-        box-shadow: inset 0 0 0 1px rgba(21, 35, 26, 0.12);
-      }
-
-      nav {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
+        background: #f7faf7;
       }
 
       a {
         color: inherit;
+      }
+
+      .page {
+        min-height: 100vh;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        border-bottom: 1px solid rgba(214, 226, 218, 0.9);
+        background: rgba(247, 250, 247, 0.92);
+        backdrop-filter: blur(12px);
+      }
+
+      .topbar-inner,
+      .section-inner {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      .topbar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        min-height: 76px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        color: #ffffff;
+        background: var(--leaf);
+        font-size: 24px;
+        font-weight: 900;
+      }
+
+      .brand-text strong {
+        display: block;
+        font-size: 19px;
+        line-height: 1.1;
+      }
+
+      .brand-text span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
       }
 
       .nav-link,
@@ -81,162 +113,290 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 40px;
+        min-height: 42px;
         border: 1px solid var(--line);
         border-radius: 8px;
-        padding: 0 14px;
+        padding: 0 15px;
+        color: var(--ink);
+        background: #ffffff;
+        font-weight: 800;
         text-decoration: none;
-        background: rgba(255, 255, 255, 0.74);
-        font-weight: 700;
+        transition:
+          transform 160ms ease,
+          border-color 160ms ease,
+          background 160ms ease;
+      }
+
+      .nav-link:hover,
+      .button:hover {
+        border-color: #acc6b7;
+        transform: translateY(-1px);
       }
 
       .button.primary {
-        color: var(--white);
-        background: var(--leaf);
+        color: #ffffff;
         border-color: var(--leaf);
+        background: var(--leaf);
+      }
+
+      .button.primary:hover {
+        background: var(--leaf-dark);
       }
 
       .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
-        gap: 28px;
-        align-items: stretch;
-        min-height: 420px;
+        border-bottom: 1px solid var(--line);
+        background:
+          linear-gradient(90deg, rgba(223, 241, 230, 0.72), rgba(228, 240, 245, 0.64)),
+          #f7faf7;
       }
 
-      .intro {
-        padding: 38px 0;
+      .hero-inner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 440px;
+        gap: 44px;
+        align-items: center;
+        width: min(1180px, calc(100% - 40px));
+        min-height: calc(100vh - 76px);
+        margin: 0 auto;
+        padding: 46px 0;
       }
 
       .eyebrow {
-        margin: 0 0 14px;
-        color: var(--soil);
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 18px;
+        color: var(--leaf-dark);
         font-size: 13px;
-        font-weight: 800;
+        font-weight: 900;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+      }
+
+      .eyebrow::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--amber);
       }
 
       h1 {
+        max-width: 720px;
         margin: 0;
-        max-width: 760px;
-        font-size: clamp(42px, 8vw, 82px);
-        line-height: 0.94;
+        font-size: clamp(48px, 8vw, 86px);
+        line-height: 0.95;
         letter-spacing: 0;
       }
 
       .lead {
-        max-width: 620px;
+        max-width: 680px;
         margin: 22px 0 0;
-        font-size: 19px;
-        line-height: 1.65;
-        color: var(--muted);
+        color: #3f5148;
+        font-size: 20px;
+        line-height: 1.6;
       }
 
-      .actions {
+      .hero-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        margin-top: 28px;
+        margin-top: 30px;
       }
 
-      .phone {
-        position: relative;
-        min-height: 420px;
-        border-radius: 8px;
-        overflow: hidden;
-        background:
-          linear-gradient(160deg, rgba(31, 122, 69, 0.12), rgba(122, 79, 43, 0.14)),
-          #eef5ec;
-        border: 1px solid var(--line);
+      .signals {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        max-width: 760px;
+        margin-top: 34px;
       }
 
-      .phone::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-          linear-gradient(22deg, transparent 0 38%, rgba(31, 122, 69, 0.32) 39% 42%, transparent 43%),
-          linear-gradient(162deg, transparent 0 54%, rgba(122, 79, 43, 0.22) 55% 58%, transparent 59%),
-          repeating-linear-gradient(90deg, rgba(31, 122, 69, 0.08) 0 2px, transparent 2px 26px);
-      }
-
-      .mock-device {
-        position: absolute;
-        right: 44px;
-        bottom: 28px;
-        width: min(280px, 70%);
-        height: 350px;
-        border-radius: 30px;
-        padding: 14px;
-        background: #172119;
-        box-shadow: 0 24px 70px rgba(21, 35, 26, 0.2);
-      }
-
-      .screen {
-        height: 100%;
-        border-radius: 20px;
-        overflow: hidden;
-        background: var(--white);
-      }
-
-      .scan-view {
-        height: 142px;
-        background:
-          radial-gradient(circle at 32% 44%, #a3c15f 0 12%, transparent 13%),
-          radial-gradient(circle at 58% 55%, #4f8a47 0 16%, transparent 17%),
-          linear-gradient(135deg, #d6e9cf, #8bb377);
-      }
-
-      .result-view {
+      .signal {
+        min-height: 96px;
         padding: 16px;
+        border: 1px solid rgba(214, 226, 218, 0.9);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.72);
       }
 
-      .pill {
+      .signal strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 24px;
+      }
+
+      .signal span {
+        color: var(--muted);
+        line-height: 1.4;
+      }
+
+      .preview {
+        display: grid;
+        gap: 16px;
+      }
+
+      .app-preview {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .crop-photo {
+        position: relative;
+        min-height: 210px;
+        background:
+          radial-gradient(circle at 33% 35%, #aac85b 0 9%, transparent 10%),
+          radial-gradient(circle at 54% 42%, #3f873f 0 13%, transparent 14%),
+          radial-gradient(circle at 68% 62%, #72a754 0 11%, transparent 12%),
+          linear-gradient(145deg, #d7e7c8, #91bd78);
+      }
+
+      .scan-frame {
+        position: absolute;
+        inset: 34px;
+        border: 2px solid rgba(255, 255, 255, 0.88);
+        border-radius: 8px;
+        box-shadow: inset 0 0 0 999px rgba(16, 32, 24, 0.08);
+      }
+
+      .result-panel {
+        padding: 22px;
+      }
+
+      .badge-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .badge {
         display: inline-flex;
         align-items: center;
+        min-height: 30px;
         border-radius: 999px;
-        padding: 6px 10px;
+        padding: 0 11px;
         font-size: 12px;
-        font-weight: 800;
-        background: #e9f6ee;
-        color: var(--leaf);
+        font-weight: 900;
       }
 
-      .mock-title {
-        margin: 14px 0 8px;
-        font-size: 22px;
-        font-weight: 850;
+      .badge.good {
+        color: var(--leaf-dark);
+        background: var(--mint);
       }
 
-      .confidence {
-        height: 10px;
-        border-radius: 999px;
-        background: #e8eee9;
-        overflow: hidden;
+      .badge.warn {
+        color: #6d4508;
+        background: var(--amber-soft);
       }
 
-      .confidence span {
+      .diagnosis {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .diagnosis h2 {
+        margin: 0 0 6px;
+        font-size: 30px;
+      }
+
+      .diagnosis p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .score {
+        min-width: 88px;
+        text-align: right;
+      }
+
+      .score strong {
         display: block;
-        width: 86%;
+        color: var(--leaf);
+        font-size: 32px;
+      }
+
+      .bar {
+        height: 10px;
+        margin-top: 18px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e7ede9;
+      }
+
+      .bar span {
+        display: block;
+        width: 91%;
         height: 100%;
         background: var(--leaf);
       }
 
       .treatment {
-        margin-top: 16px;
-        border: 1px solid #efdca4;
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid #efd89c;
         border-radius: 8px;
-        padding: 12px;
-        background: #fff7df;
-        color: #60440e;
-        font-size: 13px;
+        color: #604106;
+        background: #fff8e7;
         line-height: 1.45;
       }
 
-      .section-title {
-        margin: 34px 0 14px;
-        font-size: 24px;
+      .deploy-card {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 10px 28px rgba(31, 62, 43, 0.08);
+      }
+
+      .deploy-card .icon {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        color: var(--leaf-dark);
+        background: var(--mint);
+        font-weight: 900;
+      }
+
+      .deploy-card strong {
+        display: block;
+      }
+
+      .deploy-card span {
+        color: var(--muted);
+      }
+
+      section {
+        padding: 44px 0;
+      }
+
+      .section-heading {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 18px;
+      }
+
+      .section-heading h2 {
+        margin: 0;
+        font-size: 28px;
+      }
+
+      .section-heading p {
+        max-width: 620px;
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
       }
 
       .grid {
@@ -246,177 +406,436 @@
       }
 
       .card {
-        min-height: 156px;
-        padding: 18px;
+        min-height: 206px;
+        padding: 20px;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: rgba(255, 255, 255, 0.82);
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(31, 62, 43, 0.05);
+      }
+
+      .card-icon {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        color: var(--leaf-dark);
+        background: var(--mint);
+        font-weight: 900;
       }
 
       .card h3 {
         margin: 0 0 8px;
-        font-size: 17px;
+        font-size: 19px;
       }
 
       .card p {
-        margin: 0 0 16px;
+        min-height: 72px;
+        margin: 0 0 18px;
         color: var(--muted);
         line-height: 1.5;
       }
 
-      .status {
+      .checklist {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: 1.05fr 0.95fr;
         gap: 14px;
-        margin-top: 14px;
       }
 
-      .metric {
-        border-left: 4px solid var(--leaf);
-        padding: 16px;
-        background: rgba(255, 255, 255, 0.72);
+      .steps,
+      .status-board {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(31, 62, 43, 0.05);
       }
 
-      .metric strong {
+      .steps {
+        padding: 10px 0;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .step:last-child {
+        border-bottom: 0;
+      }
+
+      .step-number {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        color: #ffffff;
+        background: var(--leaf);
+        font-weight: 900;
+      }
+
+      .step strong {
         display: block;
-        font-size: 22px;
+        margin-bottom: 3px;
       }
 
-      .metric span {
+      .step span {
         color: var(--muted);
+      }
+
+      .state {
+        border-radius: 999px;
+        padding: 6px 10px;
+        color: var(--leaf-dark);
+        background: var(--mint);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .state.pending {
+        color: #6d4508;
+        background: var(--amber-soft);
+      }
+
+      .status-board {
+        padding: 20px;
+      }
+
+      .status-board h3 {
+        margin: 0 0 14px;
+        font-size: 21px;
+      }
+
+      .health-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .health-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 8px;
+        background: #f5faf6;
+      }
+
+      .health-item span {
+        color: var(--muted);
+      }
+
+      .dot {
+        flex: 0 0 auto;
+        width: 10px;
+        height: 10px;
+        margin-top: 5px;
+        border-radius: 999px;
+        background: var(--leaf);
+      }
+
+      .dot.todo {
+        background: var(--amber);
       }
 
       footer {
-        margin-top: 36px;
-        padding-top: 18px;
         border-top: 1px solid var(--line);
+        padding: 24px 0 32px;
         color: var(--muted);
+        background: #ffffff;
       }
 
-      @media (max-width: 860px) {
-        header,
-        .hero {
+      code {
+        border-radius: 6px;
+        padding: 2px 6px;
+        background: #eef4f0;
+      }
+
+      @media (max-width: 980px) {
+        .hero-inner,
+        .checklist {
           grid-template-columns: 1fr;
         }
 
-        header {
+        .hero-inner {
+          min-height: auto;
+        }
+
+        .preview {
+          max-width: 560px;
+        }
+
+        .grid,
+        .signals {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 680px) {
+        .topbar-inner,
+        .section-inner,
+        .hero-inner {
+          width: min(100% - 28px, 1180px);
+        }
+
+        .topbar-inner,
+        .section-heading {
           align-items: flex-start;
           flex-direction: column;
         }
 
-        .intro {
-          padding: 18px 0 0;
+        nav,
+        .hero-actions {
+          width: 100%;
+        }
+
+        .nav-link,
+        .button {
+          flex: 1 1 auto;
         }
 
         .grid,
-        .status {
+        .signals {
           grid-template-columns: 1fr;
         }
 
-        .phone {
-          min-height: 360px;
+        .diagnosis,
+        .step,
+        .health-item {
+          align-items: flex-start;
+          flex-direction: column;
+          display: flex;
+        }
+
+        .score {
+          text-align: left;
         }
       }
     </style>
   </head>
   <body>
-    <main class="shell">
-      <header>
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true"></span>
-          <span>ShambaDoc</span>
+    <div class="page">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <a class="brand" href="./index.html" aria-label="ShambaDoc home">
+            <span class="brand-mark">S</span>
+            <span class="brand-text">
+              <strong>ShambaDoc</strong>
+              <span>Crop health platform</span>
+            </span>
+          </a>
+          <nav aria-label="Project navigation">
+            <a class="nav-link" href="./docs/go_live.md">Go-Live</a>
+            <a class="nav-link" href="./docs/software_design.md">Blueprint</a>
+            <a class="nav-link" href="./backend/src/index.js">API</a>
+            <a class="nav-link" href="./mobile/lib/main.dart">Mobile</a>
+          </nav>
         </div>
-        <nav aria-label="Project navigation">
-          <a class="nav-link" href="./README.md">README</a>
-          <a class="nav-link" href="./docs/go_live.md">Go-Live Guide</a>
-          <a class="nav-link" href="./backend/">Backend</a>
-          <a class="nav-link" href="./mobile/">Mobile</a>
-        </nav>
       </header>
 
-      <section class="hero" aria-labelledby="page-title">
-        <div class="intro">
-          <p class="eyebrow">Launch console</p>
-          <h1 id="page-title">ShambaDoc</h1>
-          <p class="lead">
-            Offline-first crop disease diagnosis for Kenyan smallholder farmers.
-            Use this page as the local project entry point while the Flutter app
-            and Node API are prepared for launch.
-          </p>
-          <div class="actions">
-            <a class="button primary" href="./docs/software_design.md">Open Blueprint</a>
-            <a class="button" href="http://127.0.0.1:3000/health">Check Local API</a>
-            <a class="button" href="https://github.com/Wokulo/ShambaDoc">GitHub Repo</a>
-          </div>
-        </div>
+      <main>
+        <section class="hero" aria-labelledby="page-title">
+          <div class="hero-inner">
+            <div>
+              <p class="eyebrow">Launch-ready workspace</p>
+              <h1 id="page-title">AI crop diagnosis for farmers in the field.</h1>
+              <p class="lead">
+                ShambaDoc combines offline TensorFlow Lite diagnosis, treatment
+                guidance, farmer scan history, and agro-dealer discovery in one
+                practical mobile product.
+              </p>
 
-        <div class="phone" aria-label="ShambaDoc diagnosis preview">
-          <div class="mock-device">
-            <div class="screen">
-              <div class="scan-view"></div>
-              <div class="result-view">
-                <span class="pill">High confidence</span>
-                <div class="mock-title">Late Blight</div>
-                <div class="confidence" aria-hidden="true"><span></span></div>
-                <div class="treatment">
-                  Apply recommended fungicide within 48 hours. Save the scan and
-                  contact the nearest agro-dealer for available treatment.
+              <div class="hero-actions">
+                <a class="button primary" href="./docs/go_live.md">Start Deployment</a>
+                <a class="button" href="http://127.0.0.1:3000/health">Check API Health</a>
+                <a class="button" href="https://github.com/Wokulo/ShambaDoc">Open GitHub</a>
+              </div>
+
+              <div class="signals" aria-label="Project readiness summary">
+                <div class="signal">
+                  <strong>Offline</strong>
+                  <span>TFLite-first diagnosis flow for rural connectivity.</span>
+                </div>
+                <div class="signal">
+                  <strong>Deployable</strong>
+                  <span>Docker, Render blueprint, and PostgreSQL schema ready.</span>
+                </div>
+                <div class="signal">
+                  <strong>Pilot</strong>
+                  <span>Structured for SACCO, farmer, and agro-dealer trials.</span>
+                </div>
+              </div>
+            </div>
+
+            <aside class="preview" aria-label="Diagnosis preview">
+              <div class="app-preview">
+                <div class="crop-photo">
+                  <div class="scan-frame" aria-hidden="true"></div>
+                </div>
+                <div class="result-panel">
+                  <div class="badge-row">
+                    <span class="badge good">High confidence</span>
+                    <span class="badge warn">Moderate severity</span>
+                  </div>
+                  <div class="diagnosis">
+                    <div>
+                      <h2>Late Blight</h2>
+                      <p>Tomato crop diagnosis</p>
+                    </div>
+                    <div class="score">
+                      <strong>91%</strong>
+                      <span>AI confidence</span>
+                    </div>
+                  </div>
+                  <div class="bar" aria-hidden="true"><span></span></div>
+                  <div class="treatment">
+                    Apply recommended fungicide within 48 hours, save the scan,
+                    then contact the nearest agro-dealer for availability.
+                  </div>
+                </div>
+              </div>
+
+              <div class="deploy-card">
+                <span class="icon">✓</span>
+                <div>
+                  <strong>Repository synced</strong>
+                  <span>Latest launch page pushed to Wokulo/ShambaDoc.</span>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section aria-labelledby="quick-links-title">
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <h2 id="quick-links-title">Project Workspace</h2>
+              </div>
+              <p>
+                Open the most useful files directly from here while developing,
+                deploying, or explaining the system.
+              </p>
+            </div>
+
+            <div class="grid">
+              <article class="card">
+                <div class="card-icon">API</div>
+                <h3>Backend API</h3>
+                <p>Express service for scan logging, feedback, dealers, statistics, and heatmaps.</p>
+                <a class="button" href="./backend/src/index.js">Open Backend</a>
+              </article>
+              <article class="card">
+                <div class="card-icon">APP</div>
+                <h3>Flutter Mobile</h3>
+                <p>Camera scan, confidence-aware result screen, local history, and dealer map.</p>
+                <a class="button" href="./mobile/lib/main.dart">Open Mobile</a>
+              </article>
+              <article class="card">
+                <div class="card-icon">DB</div>
+                <h3>Database Schema</h3>
+                <p>PostgreSQL tables for scans, dealers, reminders, subscriptions, and alerts.</p>
+                <a class="button" href="./backend/database/schema.sql">Open Schema</a>
+              </article>
+              <article class="card">
+                <div class="card-icon">GO</div>
+                <h3>Go-Live Guide</h3>
+                <p>Deployment steps for Render, PostgreSQL, Firebase, environment variables, and APK builds.</p>
+                <a class="button" href="./docs/go_live.md">Open Guide</a>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="launch-title">
+          <div class="section-inner">
+            <div class="section-heading">
+              <div>
+                <h2 id="launch-title">Launch Checklist</h2>
+              </div>
+              <p>
+                Focus on these items before sharing the product with farmers,
+                judges, or pilot partners.
+              </p>
+            </div>
+
+            <div class="checklist">
+              <div class="steps">
+                <div class="step">
+                  <span class="step-number">1</span>
+                  <div>
+                    <strong>Run the backend</strong>
+                    <span>Start the Express API and confirm the health endpoint responds.</span>
+                  </div>
+                  <span class="state pending">Local step</span>
+                </div>
+                <div class="step">
+                  <span class="step-number">2</span>
+                  <div>
+                    <strong>Deploy the API</strong>
+                    <span>Use the Render blueprint and apply the PostgreSQL schema.</span>
+                  </div>
+                  <span class="state">Prepared</span>
+                </div>
+                <div class="step">
+                  <span class="step-number">3</span>
+                  <div>
+                    <strong>Build Android APK</strong>
+                    <span>Pass the live API URL with Flutter dart defines.</span>
+                  </div>
+                  <span class="state pending">Needs Flutter</span>
+                </div>
+              </div>
+
+              <div class="status-board">
+                <h3>Readiness</h3>
+                <div class="health-list">
+                  <div class="health-item">
+                    <div>
+                      <strong>Source code</strong>
+                      <span>Committed and pushed to GitHub.</span>
+                    </div>
+                    <span class="dot" aria-hidden="true"></span>
+                  </div>
+                  <div class="health-item">
+                    <div>
+                      <strong>Deployment files</strong>
+                      <span>Dockerfile and Render blueprint are present.</span>
+                    </div>
+                    <span class="dot" aria-hidden="true"></span>
+                  </div>
+                  <div class="health-item">
+                    <div>
+                      <strong>Runtime secrets</strong>
+                      <span>Firebase, Maps, Plant.id, and database values still need real production entries.</span>
+                    </div>
+                    <span class="dot todo" aria-hidden="true"></span>
+                  </div>
+                  <div class="health-item">
+                    <div>
+                      <strong>Mobile build tools</strong>
+                      <span>Install Flutter locally before generating the APK or app bundle.</span>
+                    </div>
+                    <span class="dot todo" aria-hidden="true"></span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="quick-links-title">
-        <h2 class="section-title" id="quick-links-title">Quick Links</h2>
-        <div class="grid">
-          <article class="card">
-            <h3>Backend API</h3>
-            <p>Node.js service for scan logging, feedback, dealers, and heatmaps.</p>
-            <a class="button" href="./backend/src/index.js">Open API</a>
-          </article>
-          <article class="card">
-            <h3>Mobile App</h3>
-            <p>Flutter app with camera scan, local history, map, and AI flow.</p>
-            <a class="button" href="./mobile/lib/main.dart">Open Mobile</a>
-          </article>
-          <article class="card">
-            <h3>Go Live</h3>
-            <p>Deployment guide for Render, PostgreSQL, Firebase, and APK builds.</p>
-            <a class="button" href="./docs/go_live.md">Open Guide</a>
-          </article>
-          <article class="card">
-            <h3>Architecture</h3>
-            <p>Full product design, roadmap, data model, and launch criteria.</p>
-            <a class="button" href="./docs/software_design.md">Open Design</a>
-          </article>
-        </div>
-      </section>
-
-      <section aria-labelledby="status-title">
-        <h2 class="section-title" id="status-title">Launch Status</h2>
-        <div class="status">
-          <div class="metric">
-            <strong>Mobile</strong>
-            <span>Flutter source ready for Android setup</span>
-          </div>
-          <div class="metric">
-            <strong>API</strong>
-            <span>Express backend prepared for deployment</span>
-          </div>
-          <div class="metric">
-            <strong>Database</strong>
-            <span>PostgreSQL schema includes V2 roadmap tables</span>
-          </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <footer>
-        Open this page with Live Server from the project root. Run the backend
-        separately from the <code>backend</code> folder to enable the local API
-        health check.
+        <div class="section-inner">
+          Run the backend from <code>backend</code>, then use
+          <code>http://127.0.0.1:3000/health</code> to verify the local API.
+        </div>
       </footer>
-    </main>
+    </div>
   </body>
 </html>
