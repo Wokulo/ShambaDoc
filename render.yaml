@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: shambadoc-api
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: shambadoc-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: shambadoc-postgres
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: shambadoc-postgres
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: shambadoc-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: shambadoc-postgres
+          property: password
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY_ID
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: PLANT_ID_API_KEY
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
+
+databases:
+  - name: shambadoc-postgres
+    plan: starter
