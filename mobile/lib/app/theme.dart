@@ -17,7 +17,7 @@ class AppTheme {
         elevation: 0, centerTitle: true, backgroundColor: primaryGreen, foregroundColor: Colors.white,
         titleTextStyle: GoogleFonts.nunito(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
       ),
-      cardTheme: CardTheme(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      cardTheme: CardThemeData(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryGreen, foregroundColor: Colors.white,

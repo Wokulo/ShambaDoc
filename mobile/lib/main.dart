@@ -7,7 +7,14 @@ import 'package:shambadoc/services/storage_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  // Firebase is optional for the MVP. Without a configured google-services.json
+  // this throws; we swallow it so the offline scan flow still runs. Phone auth
+  // and cloud sync only work once Firebase is configured.
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase not configured, running in offline mode: $e');
+  }
   await StorageService().init();
   runApp(const ShambaDocApp());
 }

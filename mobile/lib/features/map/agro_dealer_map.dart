@@ -87,7 +87,7 @@ class _AgroDealerMapState extends State<AgroDealerMap> {
 
     for (var dealer in demoDealers) {
       _markers.add(Marker(
-        markerId: MarkerId(dealer['name']!),
+        markerId: MarkerId(dealer['name']! as String),
         position: LatLng(dealer['lat']! as double, dealer['lng']! as double),
         infoWindow: InfoWindow(
           title: dealer['name'] as String,
