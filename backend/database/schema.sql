@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS scans (
     user_id VARCHAR(255),
     disease_name VARCHAR(255) NOT NULL,
     confidence DECIMAL(5,4) NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+    confidence_tier VARCHAR(20),
+    severity VARCHAR(20),
     crop_type VARCHAR(100) DEFAULT 'Unknown',
     latitude DECIMAL(10, 8),
     longitude DECIMAL(11, 8),

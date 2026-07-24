@@ -66,19 +66,23 @@ flutter run
 
 ## 5. Add the model to unlock diagnosis
 
-Drop a real `plant_disease.tflite` (and matching `labels.txt`) into
-`mobile/assets/models/`, then `flutter run` again. That single step turns this from
-a clickable shell into a working diagnosis app. See the model README for the input
-contract (224×224 RGB float32, output size == label count).
+This is the single step that turns the app from a clickable shell into a working
+diagnosis tool. A ready-to-run trainer is in
+[`mobile/model_training/`](../mobile/model_training/README.md): open it on Google
+Colab (free GPU), run three cells, and it trains MobileNetV2 on the PlantVillage +
+beans + cassava datasets and exports `plant_disease.tflite` + `labels.txt` for all
+26 classes. Drop both into `mobile/assets/models/`, then `flutter run` again.
+
+Input contract: 224×224 RGB float32 in [0,1], output size 26 (== label count).
 
 ## 6. (Optional) Wire the backend later
 
 Only after the offline loop works:
 
-1. Fix the three backend bugs first (see repo review notes):
-   - `dealerController.js` nearby query (`HAVING` without `GROUP BY`)
-   - `auth.js` private-key regex (`/\n/g` should be `/\\n/g`)
-   - `diagnoseController.js` never populates `region`
+1. Backend bugs are already fixed (dealer `HAVING`→subquery, `auth.js` private-key
+   regex, `diagnoseController` now populates `region`, plus the `scans` table gained
+   the missing `confidence_tier`/`severity` columns and Firebase init is now
+   optional so the API boots without credentials). Nothing to do here — just deploy.
 2. Deploy per `docs/go_live.md`.
 3. Run the app pointing at it:
    ```powershell

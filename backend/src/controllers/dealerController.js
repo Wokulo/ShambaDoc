@@ -15,35 +15,33 @@ const dealerController = {
       const searchRadius = parseFloat(radius);
 
       const query = `
-        SELECT 
-          id,
-          name,
-          phone,
-          email,
-          address,
-          latitude,
-          longitude,
-          products,
-          is_verified,
-          is_sponsored,
-          is_active,
-          (
-            6371 * acos(
-              cos(radians($1)) * cos(radians(latitude)) *
-              cos(radians(longitude) - radians($2)) +
-              sin(radians($1)) * sin(radians(latitude))
-            )
-          ) AS distance_km
-        FROM agro_dealers
-        WHERE is_active = true
-        HAVING (
-          6371 * acos(
-            cos(radians($1)) * cos(radians(latitude)) *
-            cos(radians(longitude) - radians($2)) +
-            sin(radians($1)) * sin(radians(latitude))
-          )
-        ) <= $3
-        ORDER BY distance_km ASC, is_sponsored DESC
+        SELECT * FROM (
+          SELECT
+            id,
+            name,
+            phone,
+            email,
+            address,
+            latitude,
+            longitude,
+            products,
+            is_verified,
+            is_sponsored,
+            is_active,
+            (
+              6371 * acos(
+                LEAST(1, GREATEST(-1,
+                  cos(radians($1)) * cos(radians(latitude)) *
+                  cos(radians(longitude) - radians($2)) +
+                  sin(radians($1)) * sin(radians(latitude))
+                ))
+              )
+            ) AS distance_km
+          FROM agro_dealers
+          WHERE is_active = true
+        ) AS dealers_with_distance
+        WHERE distance_km <= $3
+        ORDER BY is_sponsored DESC, distance_km ASC
         LIMIT 50;
       `;
 

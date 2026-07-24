@@ -1,4 +1,5 @@
 const plantIdService = require('../services/plantIdService');
+const locationService = require('../services/locationService');
 const pool = require('../services/db');
 
 const diagnoseController = {
@@ -13,6 +14,7 @@ const diagnoseController = {
         crop_type,
         lat,
         lng,
+        region,
         timestamp,
         image_base64
       } = req.body;
@@ -21,10 +23,23 @@ const diagnoseController = {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      // Populate region so the heatmap and regional-stats endpoints have
+      // something to filter/group on. Prefer a client-supplied region; otherwise
+      // reverse-geocode the coordinates (best-effort — null if unavailable).
+      let resolvedRegion = region || null;
+      if (!resolvedRegion && lat != null && lng != null) {
+        try {
+          const geo = await locationService.reverseGeocode(lat, lng);
+          resolvedRegion = geo?.county || null;
+        } catch (e) {
+          resolvedRegion = null;
+        }
+      }
+
       const query = `
         INSERT INTO scans (scan_id, user_id, disease_name, confidence, confidence_tier, severity,
-                           crop_type, latitude, longitude, scanned_at, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+                           crop_type, latitude, longitude, region, scanned_at, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
         ON CONFLICT (scan_id) DO NOTHING
         RETURNING *;
       `;
@@ -39,6 +54,7 @@ const diagnoseController = {
         crop_type || 'Unknown',
         lat || null,
         lng || null,
+        resolvedRegion,
         timestamp ? new Date(timestamp) : new Date()
       ];
 
