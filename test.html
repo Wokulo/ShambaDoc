@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShambaDoc Minimal Test</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; background: #f7faf7; color: #102018; padding: 20px; }
+    .box { border: 1px solid #d6e2da; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fff; }
+    pre { background: #eef4f0; padding: 10px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Minimal Backend Connection Test</h1>
+  <p>Document location: <strong id="loc"></strong></p>
+  <button onclick="test1()">Test fetch('/health')</button>
+  <button onclick="test2()">Test fetch('/api/dealers?lat=-1.2921&lng=36.8219&radius=50')</button>
+  <div id="out"></div>
+
+  <script>
+    document.getElementById('loc').textContent = location.href;
+    const out = document.getElementById('out');
+    function log(title, data) {
+      out.innerHTML += '<div class="box"><h3>' + title + '</h3><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
+    }
+    async function test1() {
+      try {
+        const r = await fetch('/health');
+        const t = await r.text();
+        log('/health', { status: r.status, ok: r.ok, body: t });
+      } catch (e) {
+        log('/health ERROR', { message: e.message, name: e.name });
+      }
+    }
+    async function test2() {
+      try {
+        const r = await fetch('/api/dealers?lat=-1.2921&lng=36.8219&radius=50');
+        const t = await r.text();
+        log('/api/dealers', { status: r.status, ok: r.ok, body: t });
+      } catch (e) {
+        log('/api/dealers ERROR', { message: e.message, name: e.name });
+      }
+    }
+  </script>
+</body>
+</html>
