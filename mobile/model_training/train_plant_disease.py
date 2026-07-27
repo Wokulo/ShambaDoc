@@ -137,18 +137,11 @@ def list_plant_village_files(name_map):
     return paths, labels
 
 
-def load_plant_village(name_map):
-    """tf.data pipeline over the cloned PlantVillage color images -> ([0,1], idx)."""
-    paths, labels = list_plant_village_files(name_map)
-
-    def _load(path, label):
-        img = tf.io.decode_jpeg(tf.io.read_file(path), channels=3)
-        img = tf.image.resize(img, (IMG_SIZE, IMG_SIZE))
-        img = tf.cast(img, tf.float32) / 255.0  # -> [0, 1], matches the app
-        return img, tf.cast(label, tf.int64)
-
-    ds = tf.data.Dataset.from_tensor_slices((paths, labels))
-    return ds.map(_load, num_parallel_calls=AUTOTUNE)
+def _decode(path, label):
+    img = tf.io.decode_jpeg(tf.io.read_file(path), channels=3)
+    img = tf.image.resize(img, (IMG_SIZE, IMG_SIZE))
+    img = tf.cast(img, tf.float32) / 255.0  # -> [0, 1], matches the app
+    return img, tf.cast(label, tf.int64)
 
 
 def count_class_frequencies():
@@ -165,18 +158,27 @@ def count_class_frequencies():
 
 
 def build_dataset():
-    combined = load_plant_village(PLANT_VILLAGE_MAP)
+    # The file list is already globally pre-shuffled (seed 42), so we split on
+    # indices (1-in-8 held out for validation) and shuffle the lightweight
+    # (path, label) pairs BEFORE decoding. Shuffling strings fills the buffer
+    # instantly; a big shuffle buffer over decoded images instead stalls for
+    # minutes at "Filling up shuffle buffer" and looks like a hang.
+    paths, labels = list_plant_village_files(PLANT_VILLAGE_MAP)
+    tr_p, tr_l, va_p, va_l = [], [], [], []
+    for i, (p, lbl) in enumerate(zip(paths, labels)):
+        if i % 8 == 0:
+            va_p.append(p); va_l.append(lbl)
+        else:
+            tr_p.append(p); tr_l.append(lbl)
 
-    # Deterministic shuffle so the train/val split below never overlaps.
-    combined = combined.shuffle(20000, seed=42, reshuffle_each_iteration=False)
-
-    # 1-in-8 held out for validation.
-    val = combined.enumerate().filter(lambda i, _d: i % 8 == 0).map(lambda _i, d: d)
-    train = combined.enumerate().filter(lambda i, _d: i % 8 != 0).map(lambda _i, d: d)
-
-    train = (train.map(augment, num_parallel_calls=AUTOTUNE)
-                  .batch(BATCH_SIZE).prefetch(AUTOTUNE))
-    val = val.batch(BATCH_SIZE).prefetch(AUTOTUNE)
+    train = (tf.data.Dataset.from_tensor_slices((tr_p, tr_l))
+             .shuffle(len(tr_p), seed=42, reshuffle_each_iteration=True)
+             .map(_decode, num_parallel_calls=AUTOTUNE)
+             .map(augment, num_parallel_calls=AUTOTUNE)
+             .batch(BATCH_SIZE).prefetch(AUTOTUNE))
+    val = (tf.data.Dataset.from_tensor_slices((va_p, va_l))
+           .map(_decode, num_parallel_calls=AUTOTUNE)
+           .batch(BATCH_SIZE).prefetch(AUTOTUNE))
     return train, val
 
 
