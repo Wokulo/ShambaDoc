@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shambadoc/services/auth_service.dart';
 import 'package:shambadoc/services/storage_service.dart';
+import 'package:shambadoc/features/settings/agrovet_registration_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -76,6 +77,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.phone),
             title: const Text('Phone Number'),
             subtitle: Text(AuthService().currentUser?.phoneNumber ?? 'Not logged in'),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.storefront, color: Colors.green),
+            title: const Text('Register Agrovet Shop'),
+            subtitle: const Text('List your shop for farmers to find'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AgrovetRegistrationScreen(
+                    baseUrl: String.fromEnvironment(
+                      'SHAMBADOC_API_URL',
+                      defaultValue: 'http://192.168.8.5:3000',
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           const Divider(),
           const ListTile(

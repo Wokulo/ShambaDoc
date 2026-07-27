@@ -8,7 +8,7 @@ class CloudAIService {
   static const String _plantIdUrl = 'https://api.plant.id/v2/health_assessment';
   static const String _backendUrl = String.fromEnvironment(
     'SHAMBADOC_API_URL',
-    defaultValue: 'http://localhost:3000/api',
+    defaultValue: 'http://192.168.8.5:3000/api',
   );
 
   static Future<DiseaseModel?> cloudPredict(File imageFile) async {

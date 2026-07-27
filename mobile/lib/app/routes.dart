@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
+my phone import 'package:flutter/material.dart';
 import 'package:shambadoc/features/scan/scan_screen.dart';
 import 'package:shambadoc/features/scan/result_screen.dart';
 import 'package:shambadoc/features/history/history_screen.dart';
 import 'package:shambadoc/features/map/agro_dealer_map.dart';
 import 'package:shambadoc/features/settings/settings_screen.dart';
+import 'package:shambadoc/features/settings/agrovet_registration_screen.dart';
+import 'package:shambadoc/features/market/register_produce_screen.dart';
+import 'package:shambadoc/features/market/market_recommendations_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -95,6 +98,49 @@ class HomeScreen extends StatelessWidget {
             _buildActionCard(context, icon: Icons.map, title: 'Find Agro-Dealer',
               subtitle: 'Locate nearest input suppliers', color: Colors.orange.shade50,
               onTap: () => Navigator.pushNamed(context, AppRoutes.map)),
+            const SizedBox(height: 12),
+            _buildActionCard(context, icon: Icons.storefront, title: 'Register Shop',
+              subtitle: 'List your agrovet on ShambaDoc', color: Colors.purple.shade50,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AgrovetRegistrationScreen(
+                      baseUrl: String.fromEnvironment(
+                        'SHAMBADOC_API_URL',
+                        defaultValue: 'http://192.168.8.5:3000',
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            const SizedBox(height: 12),
+            _buildActionCard(context, icon: Icons.shopping_bag, title: 'Register Produce',
+              subtitle: 'List crops or livestock for sale', color: Colors.teal.shade50,
+              onTap: () async {
+                const baseUrl = String.fromEnvironment(
+                  'SHAMBADOC_API_URL',
+                  defaultValue: 'http://192.168.8.5:3000',
+                );
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const RegisterProduceScreen(baseUrl: baseUrl, farmerId: 1),
+                  ),
+                );
+                if (result != null && mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MarketRecommendationsScreen(
+                        baseUrl: baseUrl,
+                        farmerId: 1,
+                        produceItemId: result,
+                      ),
+                    ),
+                  );
+                }
+              }),
           ],
         ),
       ),
