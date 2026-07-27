@@ -14,7 +14,7 @@ class TFLiteService {
   bool _isInitialized = false;
 
   static const int inputSize = 224;
-  static const int numClasses = 26;
+  static const int numClasses = 18;
   static const String modelPath = 'assets/models/plant_disease.tflite';
   static const String labelPath = 'assets/models/labels.txt';
 

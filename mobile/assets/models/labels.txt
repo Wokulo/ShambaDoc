@@ -14,13 +14,5 @@ Tomato___healthy
 Potato___Early_blight
 Potato___Late_blight
 Potato___healthy
-Bean___Angular_leaf_spot
-Bean___Bean_rust
-Bean___healthy
-Cassava___Mosaic_disease
-Cassava___Brown_streak_disease
-Cassava___Bacterial_blight
-Cassava___Green_mite
-Cassava___healthy
 Pepper___Bacterial_spot
 Pepper___healthy

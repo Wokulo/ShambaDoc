@@ -5,37 +5,36 @@ ShambaDoc — Crop Disease Model Trainer
 Trains a MobileNetV2 transfer-learning classifier and exports
 `plant_disease.tflite` + `labels.txt` for the Flutter app.
 
-The 26 target classes span three public datasets (no Kaggle auth needed):
+The 18 target classes (maize, tomato, potato, pepper) come from PlantVillage,
+read from a clone of the spMohanty mirror — the TFDS PlantVillage source is a
+dead Mendeley URL (HTTP 403). Clone it first (in the dir you run this from):
 
-  * PlantVillage   -> Maize, Tomato, Potato, Pepper  (18 classes)
-                      Read from a clone of the spMohanty mirror (the TFDS
-                      source is a dead Mendeley URL). Clone it first:
-                        git clone --depth 1 \
-                          https://github.com/spMohanty/PlantVillage-Dataset.git
-  * beans          -> Bean     (3 classes)  via TensorFlow Datasets
-  * cassava        -> Cassava  (5 classes)  via TensorFlow Datasets
+    git clone --depth 1 https://github.com/spMohanty/PlantVillage-Dataset.git
+
+(Beans + cassava were dropped: their datasets' hosting is dead/gated. They can
+be re-added later from a reliable source; keep CANONICAL_LABELS and the app's
+labels.txt / numClasses in sync if you do.)
 
 CRITICAL CONTRACT with the app (mobile/lib/ai/tflite_service.dart):
   * Input : float32 [1, 224, 224, 3], RGB, values in [0, 1]
             (the app divides each pixel by 255 before inference)
-  * Output: float32 [1, 26], softmax scores; argmax index -> labels.txt line
+  * Output: float32 [1, 18], softmax scores; argmax index -> labels.txt line
   * labels.txt line order MUST equal CANONICAL_LABELS below, or every
     prediction is mislabeled.
 
 Run on Google Colab (free GPU):
-  !pip -q install tensorflow_datasets
+  !git clone --depth 1 https://github.com/spMohanty/PlantVillage-Dataset.git
   !python train_plant_disease.py
 Then download `plant_disease.tflite` + `labels.txt` and drop them into
   mobile/assets/models/
 
-Runtime: ~20-40 min on a Colab T4 GPU.
+Runtime: ~15-30 min on a Colab T4 GPU. No TensorFlow Datasets needed.
 """
 
 import os
 import random
 import numpy as np
 import tensorflow as tf
-import tensorflow_datasets as tfds
 
 # ---------------------------------------------------------------------------
 # 1. Canonical label order — MUST match mobile/assets/models/labels.txt exactly
@@ -57,24 +56,16 @@ CANONICAL_LABELS = [
     "Potato___Early_blight",
     "Potato___Late_blight",
     "Potato___healthy",
-    "Bean___Angular_leaf_spot",
-    "Bean___Bean_rust",
-    "Bean___healthy",
-    "Cassava___Mosaic_disease",
-    "Cassava___Brown_streak_disease",
-    "Cassava___Bacterial_blight",
-    "Cassava___Green_mite",
-    "Cassava___healthy",
     "Pepper___Bacterial_spot",
     "Pepper___healthy",
 ]
 NUM_CLASSES = len(CANONICAL_LABELS)
-assert NUM_CLASSES == 26, f"expected 26 classes, got {NUM_CLASSES}"
+assert NUM_CLASSES == 18, f"expected 18 classes, got {NUM_CLASSES}"
 LABEL_TO_INDEX = {name: i for i, name in enumerate(CANONICAL_LABELS)}
 
 # ---------------------------------------------------------------------------
-# 2. Per-dataset source-class -> canonical-label mappings (matched by NAME,
-#    so the script is robust to tfds label-index changes)
+# 2. PlantVillage source-folder -> canonical-label mapping (matched by folder
+#    name, so it is robust to how the images are ordered on disk)
 # ---------------------------------------------------------------------------
 PLANT_VILLAGE_MAP = {
     "Corn_(maize)___Common_rust_": "Maize___Common_rust",
@@ -96,18 +87,7 @@ PLANT_VILLAGE_MAP = {
     "Pepper,_bell___Bacterial_spot": "Pepper___Bacterial_spot",
     "Pepper,_bell___healthy": "Pepper___healthy",
 }
-BEANS_MAP = {
-    "angular_leaf_spot": "Bean___Angular_leaf_spot",
-    "bean_rust": "Bean___Bean_rust",
-    "healthy": "Bean___healthy",
-}
-CASSAVA_MAP = {
-    "cmd": "Cassava___Mosaic_disease",
-    "cbsd": "Cassava___Brown_streak_disease",
-    "cbb": "Cassava___Bacterial_blight",
-    "cgm": "Cassava___Green_mite",
-    "healthy": "Cassava___healthy",
-}
+assert len(PLANT_VILLAGE_MAP) == NUM_CLASSES, "map size must equal class count"
 
 IMG_SIZE = 224
 BATCH_SIZE = 32
@@ -120,36 +100,6 @@ AUTOTUNE = tf.data.AUTOTUNE
 PLANT_VILLAGE_DIR = os.environ.get(
     "PLANT_VILLAGE_DIR", "PlantVillage-Dataset/raw/color"
 )
-
-
-def build_lut(source_names, name_map):
-    """Return an int64 tensor: source_label_index -> canonical index (or -1)."""
-    lut = []
-    for name in source_names:
-        target = name_map.get(name)
-        lut.append(LABEL_TO_INDEX[target] if target is not None else -1)
-    # Sanity: every mapping key must exist in the dataset's class names
-    missing = set(name_map) - set(source_names)
-    if missing:
-        raise ValueError(f"mapping keys not found in dataset classes: {missing}")
-    return tf.constant(lut, dtype=tf.int64)
-
-
-def load_source(name, split, name_map, training):
-    """Load a tfds source, remap to canonical indices, drop unused classes."""
-    ds, info = tfds.load(name, split=split, with_info=True)
-    source_names = info.features["label"].names
-    lut = build_lut(source_names, name_map)
-
-    def _map(example):
-        img = tf.image.resize(example["image"], (IMG_SIZE, IMG_SIZE))
-        img = tf.cast(img, tf.float32) / 255.0  # -> [0, 1], matches the app
-        label = tf.gather(lut, example["label"])
-        return img, label
-
-    ds = ds.map(_map, num_parallel_calls=AUTOTUNE)
-    ds = ds.filter(lambda _img, label: label >= 0)  # drop classes we don't use
-    return ds
 
 
 def augment(img, label):
@@ -195,7 +145,6 @@ def load_plant_village(name_map):
         img = tf.io.decode_jpeg(tf.io.read_file(path), channels=3)
         img = tf.image.resize(img, (IMG_SIZE, IMG_SIZE))
         img = tf.cast(img, tf.float32) / 255.0  # -> [0, 1], matches the app
-        # int64 to match load_source's tf.gather labels, so concatenate() agrees.
         return img, tf.cast(label, tf.int64)
 
     ds = tf.data.Dataset.from_tensor_slices((paths, labels))
@@ -203,10 +152,8 @@ def load_plant_village(name_map):
 
 
 def count_class_frequencies():
-    """Fast label-only pass (skips image decode) for class weighting."""
+    """Count images per class from the cloned color folders (for class weights)."""
     counts = np.zeros(NUM_CLASSES, dtype=np.int64)
-
-    # PlantVillage: count files in the cloned color folders.
     for src_name, canonical in PLANT_VILLAGE_MAP.items():
         folder = os.path.join(PLANT_VILLAGE_DIR, src_name)
         if os.path.isdir(folder):  # a missing folder -> 0 count, caught in main()
@@ -214,39 +161,16 @@ def count_class_frequencies():
                 1 for fn in os.listdir(folder)
                 if fn.lower().endswith((".jpg", ".jpeg"))
             )
-
-    # beans + cassava: label-only tfds pass (skips image decode).
-    for ds_name, split, name_map in [
-        ("beans", "train+validation+test", BEANS_MAP),
-        ("cassava", "train+validation+test", CASSAVA_MAP),
-    ]:
-        ds, info = tfds.load(
-            ds_name, split=split, with_info=True,
-            decoders={"image": tfds.decode.SkipDecoding()},
-        )
-        source_names = info.features["label"].names
-        lut = [LABEL_TO_INDEX.get(name_map.get(n), -1) for n in source_names]
-        for ex in tfds.as_numpy(ds):
-            idx = lut[int(ex["label"])]
-            if idx >= 0:
-                counts[idx] += 1
     return counts
 
 
 def build_dataset():
-    parts = [
-        load_plant_village(PLANT_VILLAGE_MAP),
-        load_source("beans", "train+validation+test", BEANS_MAP, training=True),
-        load_source("cassava", "train+validation+test", CASSAVA_MAP, training=True),
-    ]
-    combined = parts[0]
-    for p in parts[1:]:
-        combined = combined.concatenate(p)
+    combined = load_plant_village(PLANT_VILLAGE_MAP)
 
-    # Deterministic shuffle so the train/val split below never overlaps
+    # Deterministic shuffle so the train/val split below never overlaps.
     combined = combined.shuffle(20000, seed=42, reshuffle_each_iteration=False)
 
-    # 1-in-8 held out for validation
+    # 1-in-8 held out for validation.
     val = combined.enumerate().filter(lambda i, _d: i % 8 == 0).map(lambda _i, d: d)
     train = combined.enumerate().filter(lambda i, _d: i % 8 != 0).map(lambda _i, d: d)
 

@@ -18,7 +18,7 @@ Until `plant_disease.tflite` exists, `TFLiteService.init()` throws and a scan sh
 - **Output:** shape `[1, N]` softmax probabilities, where `N` == number of lines in `labels.txt`.
 - **Label format:** `Crop___Disease` (three underscores separate crop and disease;
   single underscores become spaces in the UI). A healthy class is `Crop___healthy`.
-- `numClasses` in `tflite_service.dart` (currently 26) must equal `N`.
+- `numClasses` in `tflite_service.dart` (currently 18) must equal `N`.
 
 If you train a **quantized** model, the input/output are `uint8` and the preprocessing
 in `tflite_service.dart` must change — it currently assumes float32.
