@@ -35,7 +35,10 @@ run top to bottom:
 # Cell 1 — get the training script
 !git clone https://github.com/Wokulo/ShambaDoc.git
 %cd ShambaDoc/mobile/model_training
-!pip -q install tensorflow_datasets
+# Pin a matched tfds/tensorflow-metadata pair. Upgrading tfds pulls
+# tensorflow-metadata 1.17+ whose protobuf gencode is too new for Colab's
+# protobuf runtime, which breaks `import tensorflow_datasets` (tfds.load vanishes).
+!pip -q install "tensorflow_datasets==4.9.7" "tensorflow-metadata==1.16.1"
 ```
 
 ```python
