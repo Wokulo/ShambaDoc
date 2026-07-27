@@ -6,7 +6,10 @@ plugins {
 
 android {
     namespace = "com.example.shambadoc"
-    compileSdk = flutter.compileSdkVersion
+    // Pinned to 36: the bundled plugins (camera, geolocator, google_maps,
+    // tflite_flutter, etc.) require compileSdk 36, and flutter.compileSdkVersion
+    // resolves lower on this SDK.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
