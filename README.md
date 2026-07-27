@@ -6,7 +6,7 @@
 ## Project Structure
 
 ```
-shambadoc/
+okush/
 ├── mobile/                 # Flutter mobile application
 │   ├── lib/
 │   │   ├── app/            # Routes & theming
@@ -21,16 +21,18 @@ shambadoc/
 │   │   └── icons/
 │   └── pubspec.yaml
 │
-├── backend/                # Node.js REST API
-│   ├── src/
-│   │   ├── middleware/     # Firebase & JWT auth
-│   │   ├── routes/         # API endpoints
-│   │   ├── controllers/    # Business logic
-│   │   └── services/       # Plant.id & Google Maps
+├── backend/                # Flask REST API (local) + Node.js API (production)
+│   ├── server.py           # Single-file Flask backend for local development
+│   ├── src/                # Node.js Express backend for production deployment
 │   ├── database/
 │   │   └── schema.sql      # PostgreSQL schema
-│   ├── .env.example
-│   └── package.json
+│   ├── Dockerfile          # Node.js container config for Render
+│   ├── package.json        # Node.js dependencies
+│   └── render.yaml         # Render deployment blueprint
+│
+├── index.html              # Landing / project hub
+├── app.html                # Functional web app frontend
+├── test.html               # API test harness
 │
 └── docs/                   # Architecture & setup guides
 ```
@@ -73,14 +75,43 @@ flutter run
 - **Firebase Phone Auth** for farmer identity
 - **Local SQLite** history storage
 
-## Backend API (Node.js)
+## Backend API
 
-### Prerequisites
+### Local Development (Flask)
+
+**Prerequisites**
+- Python >= 3.10
+- Flask & Flask-CORS
+
+**Setup**
+```bash
+cd backend
+pip install flask flask-cors
+```
+
+**Run**
+```bash
+# From project root
+python backend/server.py
+
+# Or from backend directory
+python server.py
+```
+
+The server starts on `http://0.0.0.0:3000` and serves:
+- `http://localhost:3000/` — `index.html`
+- `http://localhost:3000/app.html` — functional web app
+- `http://localhost:3000/test.html` — API test harness
+- `http://localhost:3000/health` — health check
+
+### Production Deployment (Node.js)
+
+**Prerequisites**
 - Node.js >= 18
 - PostgreSQL >= 14
 - Firebase Admin SDK credentials
 
-### Setup
+**Setup**
 ```bash
 cd backend
 cp .env.example .env
@@ -88,12 +119,12 @@ cp .env.example .env
 npm install
 ```
 
-### Database
+**Database**
 ```bash
 psql -U postgres -d shambadoc -f database/schema.sql
 ```
 
-### Run
+**Run**
 ```bash
 npm run dev   # Development
 npm start     # Production
@@ -115,30 +146,30 @@ npm start     # Production
 
 ## Environment Variables
 
-### Backend (.env)
+### Flask Backend (Local)
+No `.env` file required. The Flask backend uses in-memory storage and runs with default settings.
+
+### Node.js Backend (Production)
+Copy `.env.example` to `.env` and fill in your credentials:
+
 ```bash
 PORT=3000
 NODE_ENV=development
-
-# PostgreSQL
+CORS_ORIGINS=https://shambadoc.app,https://www.shambadoc.app
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=shambadoc
 DB_USER=postgres
 DB_PASSWORD=your_password
-
-# Firebase
+DB_SSL=false
 FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY_ID=your_key_id
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk@yourproject.iam.gserviceaccount.com
-
-# JWT
-JWT_SECRET=your_super_secret_key
+JWT_SECRET=your_super_secret_jwt_key_change_in_production
 JWT_EXPIRES_IN=7d
-
-# External APIs
-PLANT_ID_API_KEY=your_plant_id_key
-GOOGLE_MAPS_API_KEY=your_google_maps_key
+PLANT_ID_API_KEY=your_plant_id_api_key
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 ```
 
 ## Authors

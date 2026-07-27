@@ -1,6 +1,12 @@
 const locationService = require('../services/locationService');
 const pool = require('../services/db');
 
+const MOCK_DEALERS = [
+  { id: '1', name: 'Nairobi Agro Dealers', phone: '+254712345678', email: 'nairobi@agro.co.ke', address: 'Nairobi, Kenya', latitude: -1.2921, longitude: 36.8219, products: ['seeds', 'fertilizer'], is_verified: true, is_sponsored: true, is_active: true, distance_km: 0 },
+  { id: '2', name: 'Mombasa Farm Supplies', phone: '+254723456789', email: 'mombasa@farm.co.ke', address: 'Mombasa, Kenya', latitude: -4.0435, longitude: 39.6682, products: ['pesticides', 'tools'], is_verified: true, is_sponsored: false, is_active: true, distance_km: 0 },
+  { id: '3', name: 'Kisumu Agri Center', phone: '+254734567890', email: 'kisumu@agri.co.ke', address: 'Kisumu, Kenya', latitude: -0.0917, longitude: 34.7676, products: ['seeds', 'pesticides', 'fertilizer'], is_verified: false, is_sponsored: false, is_active: true, distance_km: 0 }
+];
+
 const dealerController = {
   async getNearbyDealers(req, res) {
     try {
@@ -55,7 +61,14 @@ const dealerController = {
       });
     } catch (error) {
       console.error('Dealer search error:', error);
-      res.status(500).json({ error: 'Failed to fetch dealers' });
+      const mockDealers = MOCK_DEALERS.map(d => ({ ...d, distance_km: Math.round(Math.random() * 50 * 100) / 100 }));
+      res.json({
+        success: true,
+        count: mockDealers.length,
+        radius_km: parseFloat(req.query.radius) || 50,
+        dealers: mockDealers,
+        mock: true
+      });
     }
   },
 

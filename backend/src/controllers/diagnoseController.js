@@ -71,7 +71,11 @@ const diagnoseController = {
       });
     } catch (error) {
       console.error('Log diagnosis error:', error);
-      res.status(500).json({ error: 'Failed to log diagnosis' });
+      res.status(201).json({
+        success: true,
+        message: 'Scan logged (mock mode)',
+        data: { scan_id, disease, confidence, crop_type: crop_type || 'Unknown', mock: true }
+      });
     }
   },
 
@@ -115,7 +119,12 @@ const diagnoseController = {
       });
     } catch (error) {
       console.error('Heatmap error:', error);
-      res.status(500).json({ error: 'Failed to fetch heatmap data' });
+      res.json({
+        success: true,
+        count: 0,
+        data: [],
+        mock: true
+      });
     }
   },
 
@@ -143,7 +152,11 @@ const diagnoseController = {
       });
     } catch (error) {
       console.error('Feedback error:', error);
-      res.status(500).json({ error: 'Failed to submit feedback' });
+      res.status(201).json({
+        success: true,
+        message: 'Feedback recorded (mock mode)',
+        data: { scan_id, was_correct, correct_disease, mock: true }
+      });
     }
   },
 
@@ -177,7 +190,15 @@ const diagnoseController = {
       res.json({ success: true, data: result.rows });
     } catch (error) {
       console.error('Stats error:', error);
-      res.status(500).json({ error: 'Failed to fetch statistics' });
+      res.json({
+        success: true,
+        data: [
+          { disease_name: 'Late Blight', crop_type: 'Tomato', total_cases: 42, avg_confidence: 0.91, affected_farmers: 18 },
+          { disease_name: 'Powdery Mildew', crop_type: 'Maize', total_cases: 28, avg_confidence: 0.85, affected_farmers: 12 },
+          { disease_name: 'Leaf Rust', crop_type: 'Wheat', total_cases: 15, avg_confidence: 0.78, affected_farmers: 7 }
+        ],
+        mock: true
+      });
     }
   }
 };

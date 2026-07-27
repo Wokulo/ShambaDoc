@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShambaDoc - Functional App</title>
+  <style>
+    :root { --leaf: #187648; --leaf-dark: #0e4f31; --mint: #dff1e6; --amber: #d9901a; --line: #d6e2da; --ink: #102018; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, sans-serif; background: #f7faf7; color: #102018; }
+    .topbar { border-bottom: 1px solid var(--line); background: #fff; padding: 12px 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .topbar button { text-decoration: none; color: var(--ink); font-weight: 700; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
+    .topbar button.active { background: var(--leaf); color: #fff; border-color: var(--leaf); }
+    .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    .card { border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fff; }
+    .btn { background: var(--leaf); color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+    .btn:hover { background: var(--leaf-dark); }
+    .btn-outline { background: #fff; color: var(--leaf); border: 1px solid var(--leaf); }
+    input, select { padding: 8px; border: 1px solid var(--line); border-radius: 6px; width: 100%; margin-bottom: 8px; }
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+    pre { background: #eef4f0; padding: 10px; border-radius: 6px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 900; }
+    .badge.good { background: var(--mint); color: var(--leaf-dark); }
+    .badge.warn { background: #fff4d9; color: #6d4508; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .error-box { color: #b7442d; background: #fde8e8; border: 1px solid #f5a623; padding: 10px; border-radius: 6px; margin-top: 10px; }
+    .success-box { color: #0e4f31; background: var(--mint); border: 1px solid var(--leaf); padding: 10px; border-radius: 6px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <button onclick="showPage('home')" id="btn-home" class="active">Home</button>
+    <button onclick="showPage('scan')" id="btn-scan">Scan</button>
+    <button onclick="showPage('history')" id="btn-history">History</button>
+    <button onclick="showPage('dealers')" id="btn-dealers">Dealers</button>
+    <button onclick="showPage('stats')" id="btn-stats">Stats</button>
+  </header>
+
+  <div class="container">
+    <section id="page-home" class="page-section active">
+      <div class="card">
+        <h1>ShambaDoc Functional App</h1>
+        <p>Use the sections below to call live backend APIs.</p>
+        <div class="grid">
+          <div><strong>Health</strong><br><span id="health-status">Not checked</span></div>
+          <div><strong>Dealers count</strong><br><span id="dealer-count">-</span></div>
+          <div><strong>Stats records</strong><br><span id="stats-count">-</span></div>
+        </div>
+        <div id="home-error"></div>
+      </div>
+    </section>
+
+    <section id="page-scan" class="page-section">
+      <div class="card">
+        <h2>Log a Diagnosis</h2>
+        <input id="scan-id" placeholder="Scan ID" value="web-scan-001" />
+        <input id="disease" placeholder="Disease name" value="Late Blight" />
+        <input id="confidence" type="number" step="0.01" min="0" max="1" placeholder="Confidence 0-1" value="0.91" />
+        <input id="crop" placeholder="Crop type" value="Tomato" />
+        <input id="lat" type="number" step="0.0001" placeholder="Latitude" value="-1.2921" />
+        <input id="lng" type="number" step="0.0001" placeholder="Longitude" value="36.8219" />
+        <button class="btn" onclick="submitScan()">Log Scan</button>
+        <div id="scan-result"></div>
+      </div>
+      <div class="card">
+        <h2>Submit Feedback</h2>
+        <input id="fb-scan-id" placeholder="Scan ID" value="web-scan-001" />
+        <label><input type="checkbox" id="fb-correct" checked /> Was correct</label>
+        <input id="fb-disease" placeholder="Correct disease (optional)" />
+        <button class="btn" onclick="submitFeedback()">Submit Feedback</button>
+        <div id="fb-result"></div>
+      </div>
+    </section>
+
+    <section id="page-history" class="page-section">
+      <div class="card">
+        <h2>Scan History</h2>
+        <button class="btn btn-outline" onclick="loadHistory()">Refresh</button>
+        <div id="history-result"><p>Click refresh to load history...</p></div>
+      </div>
+    </section>
+
+    <section id="page-dealers" class="page-section">
+      <div class="card">
+        <h2>Find Agro-Dealers</h2>
+        <input id="d-lat" type="number" step="0.0001" placeholder="Latitude" value="-1.2921" />
+        <input id="d-lng" type="number" step="0.0001" placeholder="Longitude" value="36.8219" />
+        <input id="d-radius" type="number" placeholder="Radius km" value="100" />
+        <button class="btn" onclick="loadDealers()">Find Dealers</button>
+        <div id="dealers-result"><p>Results will appear here...</p></div>
+      </div>
+    </section>
+
+    <section id="page-stats" class="page-section">
+      <div class="card">
+        <h2>Regional Stats</h2>
+        <button class="btn btn-outline" onclick="loadStats()">Load Stats</button>
+        <div id="stats-result"><p>Click load to see stats...</p></div>
+      </div>
+      <div class="card">
+        <h2>Heatmap</h2>
+        <button class="btn btn-outline" onclick="loadHeatmap()">Load Heatmap</button>
+        <div id="heatmap-result"><p>Click load to see heatmap...</p></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const API = '';
+    function showPage(page) {
+      try {
+        document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+        const target = document.getElementById('page-' + page);
+        if (target) {
+          target.classList.add('active');
+        } else {
+          console.error('Page section not found: page-' + page);
+        }
+        document.querySelectorAll('.topbar button').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById('btn-' + page);
+        if (btn) btn.classList.add('active');
+        if (page === 'home') loadHome();
+      } catch (e) {
+        console.error('showPage error:', e);
+        alert('Navigation error: ' + e.message);
+      }
+    }
+    async function apiGet(url) {
+      const r = await fetch(API + url);
+      return { status: r.status, body: await r.text() };
+    }
+    async function apiPost(url, data) {
+      const r = await fetch(API + url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      return { status: r.status, body: await r.text() };
+    }
+    function renderResult(elementId, data, isError) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      const box = document.createElement('pre');
+      box.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+      if (isError) {
+        box.className = 'error-box';
+      } else {
+        box.className = 'success-box';
+      }
+      el.innerHTML = '';
+      el.appendChild(box);
+    }
+    async function loadHome() {
+      const homeError = document.getElementById('home-error');
+      if (homeError) homeError.innerHTML = '';
+      try {
+        const h = await apiGet('/health');
+        document.getElementById('health-status').textContent = h.status + ' OK';
+      } catch (e) {
+        document.getElementById('health-status').textContent = 'Error: ' + e.message;
+        if (homeError) homeError.innerHTML = '<div class="error-box">Backend unreachable: ' + e.message + '</div>';
+      }
+      try {
+        const d = await apiGet('/api/dealers?lat=-1.2921&lng=36.8219&radius=100');
+        const j = JSON.parse(d.body);
+        document.getElementById('dealer-count').textContent = j.count + ' dealers';
+      } catch (e) {
+        document.getElementById('dealer-count').textContent = 'Error: ' + e.message;
+      }
+      try {
+        const s = await apiGet('/api/diagnose/stats');
+        const j = JSON.parse(s.body);
+        document.getElementById('stats-count').textContent = j.data.length + ' records';
+      } catch (e) {
+        document.getElementById('stats-count').textContent = 'Error: ' + e.message;
+      }
+    }
+    async function submitScan() {
+      const data = {
+        scan_id: document.getElementById('scan-id').value,
+        disease: document.getElementById('disease').value,
+        confidence: parseFloat(document.getElementById('confidence').value),
+        crop_type: document.getElementById('crop').value,
+        lat: parseFloat(document.getElementById('lat').value),
+        lng: parseFloat(document.getElementById('lng').value),
+        timestamp: new Date().toISOString()
+      };
+      try {
+        const res = await apiPost('/api/diagnose/log', data);
+        if (res.status === 201) {
+          renderResult('scan-result', res.body, false);
+        } else {
+          renderResult('scan-result', res.body, true);
+        }
+      } catch (e) {
+        renderResult('scan-result', 'Error: ' + e.message, true);
+      }
+    }
+    async function submitFeedback() {
+      const data = {
+        scan_id: document.getElementById('fb-scan-id').value,
+        was_correct: document.getElementById('fb-correct').checked,
+        correct_disease: document.getElementById('fb-disease').value || undefined
+      };
+      try {
+        const res = await apiPost('/api/diagnose/feedback', data);
+        if (res.status === 201) {
+          renderResult('fb-result', res.body, false);
+        } else {
+          renderResult('fb-result', res.body, true);
+        }
+      } catch (e) {
+        renderResult('fb-result', 'Error: ' + e.message, true);
+      }
+    }
+    async function loadHistory() {
+      try {
+        const s = await apiGet('/api/diagnose/stats');
+        const j = JSON.parse(s.body);
+        const el = document.getElementById('history-result');
+        if (j.data.length === 0) {
+          el.innerHTML = '<p>No scans recorded yet. Log a scan on the Scan tab first.</p>';
+        } else {
+          let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#eef4f0;text-align:left;"><th style="padding:8px;border:1px solid #d6e2da;">Disease</th><th style="padding:8px;border:1px solid #d6e2da;">Crop</th><th style="padding:8px;border:1px solid #d6e2da;">Confidence</th><th style="padding:8px;border:1px solid #d6e2da;">Cases</th></tr></thead><tbody>';
+          j.data.forEach(row => {
+            html += '<tr><td style="padding:8px;border:1px solid #d6e2da;">' + row.disease_name + '</td><td style="padding:8px;border:1px solid #d6e2da;">' + row.crop_type + '</td><td style="padding:8px;border:1px solid #d6e2da;">' + row.avg_confidence + '</td><td style="padding:8px;border:1px solid #d6e2da;">' + row.total_cases + '</td></tr>';
+          });
+          html += '</tbody></table>';
+          el.innerHTML = html;
+        }
+      } catch (e) {
+        renderResult('history-result', 'Error: ' + e.message, true);
+      }
+    }
+    async function loadDealers() {
+      const lat = document.getElementById('d-lat').value;
+      const lng = document.getElementById('d-lng').value;
+      const radius = document.getElementById('d-radius').value;
+      try {
+        const res = await apiGet('/api/dealers?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&radius=' + encodeURIComponent(radius));
+        renderResult('dealers-result', res.body, false);
+      } catch (e) {
+        renderResult('dealers-result', 'Error: ' + e.message, true);
+      }
+    }
+    async function loadStats() {
+      try {
+        const res = await apiGet('/api/diagnose/stats');
+        renderResult('stats-result', res.body, false);
+      } catch (e) {
+        renderResult('stats-result', 'Error: ' + e.message, true);
+      }
+    }
+    async function loadHeatmap() {
+      try {
+        const res = await apiGet('/api/diagnose/heatmap');
+        renderResult('heatmap-result', res.body, false);
+      } catch (e) {
+        renderResult('heatmap-result', 'Error: ' + e.message, true);
+      }
+    }
+    showPage('home');
+    loadHome();
+  </script>
+</body>
+</html>

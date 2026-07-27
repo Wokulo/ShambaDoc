@@ -1,9 +1,6 @@
 const jwt = require('jsonwebtoken');
 const admin = require('firebase-admin');
 
-// Firebase is optional for the MVP. Initialize only when all service-account
-// credentials are present, so the API still boots (health check + anonymous
-// scan logging) in environments where Firebase auth isn't configured yet.
 const firebaseConfigured =
   process.env.FIREBASE_PROJECT_ID &&
   process.env.FIREBASE_PRIVATE_KEY &&
