@@ -5,12 +5,15 @@ ShambaDoc — Crop Disease Model Trainer
 Trains a MobileNetV2 transfer-learning classifier and exports
 `plant_disease.tflite` + `labels.txt` for the Flutter app.
 
-The 26 target classes span three public datasets, all available through
-TensorFlow Datasets (no Kaggle auth / manual downloads required):
+The 26 target classes span three public datasets (no Kaggle auth needed):
 
-  * plant_village  -> Maize, Tomato, Potato, Pepper  (18 classes)
-  * beans          -> Bean                            (3 classes)
-  * cassava        -> Cassava                         (5 classes)
+  * PlantVillage   -> Maize, Tomato, Potato, Pepper  (18 classes)
+                      Read from a clone of the spMohanty mirror (the TFDS
+                      source is a dead Mendeley URL). Clone it first:
+                        git clone --depth 1 \
+                          https://github.com/spMohanty/PlantVillage-Dataset.git
+  * beans          -> Bean     (3 classes)  via TensorFlow Datasets
+  * cassava        -> Cassava  (5 classes)  via TensorFlow Datasets
 
 CRITICAL CONTRACT with the app (mobile/lib/ai/tflite_service.dart):
   * Input : float32 [1, 224, 224, 3], RGB, values in [0, 1]
@@ -29,6 +32,7 @@ Runtime: ~20-40 min on a Colab T4 GPU.
 """
 
 import os
+import random
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -109,6 +113,14 @@ IMG_SIZE = 224
 BATCH_SIZE = 32
 AUTOTUNE = tf.data.AUTOTUNE
 
+# PlantVillage's TFDS source (a Mendeley URL) now returns HTTP 403, so we read it
+# from a clone of the spMohanty mirror instead. Its raw/color folder names match
+# the PLANT_VILLAGE_MAP keys exactly. Clone it before running, e.g.:
+#   git clone --depth 1 https://github.com/spMohanty/PlantVillage-Dataset.git
+PLANT_VILLAGE_DIR = os.environ.get(
+    "PLANT_VILLAGE_DIR", "PlantVillage-Dataset/raw/color"
+)
+
 
 def build_lut(source_names, name_map):
     """Return an int64 tensor: source_label_index -> canonical index (or -1)."""
@@ -148,11 +160,63 @@ def augment(img, label):
     return img, label
 
 
+def list_plant_village_files(name_map):
+    """(filepaths, canonical_indices) for the mapped PlantVillage color folders."""
+    paths, labels = [], []
+    for src_name, canonical in name_map.items():
+        folder = os.path.join(PLANT_VILLAGE_DIR, src_name)
+        if not os.path.isdir(folder):
+            raise FileNotFoundError(
+                f"PlantVillage folder not found: {folder}\n"
+                f"Clone the mirror first (in the same dir you run this from):\n"
+                f"  git clone --depth 1 "
+                f"https://github.com/spMohanty/PlantVillage-Dataset.git\n"
+                f"or set PLANT_VILLAGE_DIR to its raw/color path."
+            )
+        idx = LABEL_TO_INDEX[canonical]
+        for fn in os.listdir(folder):
+            if fn.lower().endswith((".jpg", ".jpeg")):
+                paths.append(os.path.join(folder, fn))
+                labels.append(idx)
+    # Files are grouped by class; interleave them so the downstream val split
+    # (a bounded shuffle buffer + i % 8) sees every class.
+    order = list(range(len(paths)))
+    random.Random(42).shuffle(order)
+    paths = [paths[i] for i in order]
+    labels = [labels[i] for i in order]
+    return paths, labels
+
+
+def load_plant_village(name_map):
+    """tf.data pipeline over the cloned PlantVillage color images -> ([0,1], idx)."""
+    paths, labels = list_plant_village_files(name_map)
+
+    def _load(path, label):
+        img = tf.io.decode_jpeg(tf.io.read_file(path), channels=3)
+        img = tf.image.resize(img, (IMG_SIZE, IMG_SIZE))
+        img = tf.cast(img, tf.float32) / 255.0  # -> [0, 1], matches the app
+        # int64 to match load_source's tf.gather labels, so concatenate() agrees.
+        return img, tf.cast(label, tf.int64)
+
+    ds = tf.data.Dataset.from_tensor_slices((paths, labels))
+    return ds.map(_load, num_parallel_calls=AUTOTUNE)
+
+
 def count_class_frequencies():
     """Fast label-only pass (skips image decode) for class weighting."""
     counts = np.zeros(NUM_CLASSES, dtype=np.int64)
+
+    # PlantVillage: count files in the cloned color folders.
+    for src_name, canonical in PLANT_VILLAGE_MAP.items():
+        folder = os.path.join(PLANT_VILLAGE_DIR, src_name)
+        if os.path.isdir(folder):  # a missing folder -> 0 count, caught in main()
+            counts[LABEL_TO_INDEX[canonical]] += sum(
+                1 for fn in os.listdir(folder)
+                if fn.lower().endswith((".jpg", ".jpeg"))
+            )
+
+    # beans + cassava: label-only tfds pass (skips image decode).
     for ds_name, split, name_map in [
-        ("plant_village", "train", PLANT_VILLAGE_MAP),
         ("beans", "train+validation+test", BEANS_MAP),
         ("cassava", "train+validation+test", CASSAVA_MAP),
     ]:
@@ -171,7 +235,7 @@ def count_class_frequencies():
 
 def build_dataset():
     parts = [
-        load_source("plant_village", "train", PLANT_VILLAGE_MAP, training=True),
+        load_plant_village(PLANT_VILLAGE_MAP),
         load_source("beans", "train+validation+test", BEANS_MAP, training=True),
         load_source("cassava", "train+validation+test", CASSAVA_MAP, training=True),
     ]

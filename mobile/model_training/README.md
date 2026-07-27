@@ -4,14 +4,17 @@ This produces the `plant_disease.tflite` + `labels.txt` that the Flutter app
 loads in [`mobile/lib/ai/tflite_service.dart`](../lib/ai/tflite_service.dart).
 Without these files, every scan fails with *"Failed to analyze image."*
 
-The model is **26 classes** across three public datasets, all pulled
-automatically via TensorFlow Datasets — **no Kaggle account or manual downloads**:
+The model is **26 classes** across three public datasets — **no Kaggle account
+needed**:
 
-| Crop    | Source dataset (tfds) | Classes |
-|---------|-----------------------|---------|
-| Maize, Tomato, Potato, Pepper | `plant_village` | 18 |
-| Bean    | `beans`   | 3 |
-| Cassava | `cassava` | 5 |
+| Crop    | Source | Classes |
+|---------|--------|---------|
+| Maize, Tomato, Potato, Pepper | PlantVillage — [spMohanty mirror](https://github.com/spMohanty/PlantVillage-Dataset) (git clone) | 18 |
+| Bean    | `beans` (TensorFlow Datasets)   | 3 |
+| Cassava | `cassava` (TensorFlow Datasets) | 5 |
+
+> PlantVillage's TFDS source is a dead Mendeley URL (HTTP 403), so the trainer
+> reads it from a clone of the spMohanty mirror. The notebook does this for you.
 
 ## Run it on Google Colab (recommended — free GPU)
 
@@ -32,9 +35,10 @@ Only works once the latest trainer is pushed to the default branch. Paste and
 run top to bottom:
 
 ```python
-# Cell 1 — get the training script
+# Cell 1 — get the training script + the PlantVillage images
 !git clone https://github.com/Wokulo/ShambaDoc.git
 %cd ShambaDoc/mobile/model_training
+!git clone --depth 1 https://github.com/spMohanty/PlantVillage-Dataset.git
 # Pin a matched tfds/tensorflow-metadata pair. Upgrading tfds pulls
 # tensorflow-metadata 1.17+ whose protobuf gencode is too new for Colab's
 # protobuf runtime, which breaks `import tensorflow_datasets` (tfds.load vanishes).
