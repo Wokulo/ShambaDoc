@@ -247,20 +247,44 @@ def main():
               class_weight=class_weight)
 
     print("\nExporting to TFLite...")
-    converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    converter.optimizations = [tf.lite.Optimize.DEFAULT]  # smaller; keeps float32 I/O
-    tflite_model = converter.convert()
-
     out_dir = os.path.dirname(os.path.abspath(__file__))
     model_path = os.path.join(out_dir, "plant_disease.tflite")
     labels_path = os.path.join(out_dir, "labels.txt")
+
+    # Current Colab ships TF >= 2.16 with Keras 3, where
+    # TFLiteConverter.from_keras_model is unreliable for functional models.
+    # Route through an exported SavedModel when available (Keras 3), and fall
+    # back to the direct converter on Keras 2.
+    if hasattr(model, "export"):
+        saved_dir = os.path.join(out_dir, "saved_model")
+        model.export(saved_dir)
+        converter = tf.lite.TFLiteConverter.from_saved_model(saved_dir)
+    else:
+        converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]  # smaller; keeps float32 I/O
+    tflite_model = converter.convert()
+
     with open(model_path, "wb") as f:
         f.write(tflite_model)
     with open(labels_path, "w") as f:
         f.write("\n".join(CANONICAL_LABELS) + "\n")
 
+    # Verify the export matches the app's contract before you copy it over —
+    # a shape/dtype drift here means every scan is silently mislabeled.
+    interp = tf.lite.Interpreter(model_path=model_path)
+    interp.allocate_tensors()
+    in_det = interp.get_input_details()[0]
+    out_det = interp.get_output_details()[0]
+    print(f"  input : {np.dtype(in_det['dtype']).name} {list(in_det['shape'])}")
+    print(f"  output: {np.dtype(out_det['dtype']).name} {list(out_det['shape'])}")
+    assert list(in_det["shape"])[-3:] == [IMG_SIZE, IMG_SIZE, 3], "input != [*,224,224,3]"
+    assert list(out_det["shape"])[-1] == NUM_CLASSES, f"output != [*,{NUM_CLASSES}]"
+    assert in_det["dtype"] == np.float32, "input must be float32 (app feeds [0,1] float32)"
+    assert out_det["dtype"] == np.float32, "output must be float32 softmax"
+
     size_mb = os.path.getsize(model_path) / 1e6
     print(f"\nDone.\n  {model_path}  ({size_mb:.1f} MB)\n  {labels_path}")
+    print(f"Contract OK: float32 [1,{IMG_SIZE},{IMG_SIZE},3] -> [1,{NUM_CLASSES}].")
     print("Copy both into mobile/assets/models/ and run `flutter run`.")
 
 

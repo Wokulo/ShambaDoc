@@ -15,9 +15,21 @@ automatically via TensorFlow Datasets — **no Kaggle account or manual download
 
 ## Run it on Google Colab (recommended — free GPU)
 
-1. Open <https://colab.research.google.com> → **New notebook**.
+### Easiest: the ready-made notebook
+
+`ShambaDoc_train_colab.ipynb` (in this folder) is fully self-contained — it
+embeds the trainer, so there is no `git clone` and nothing to keep in sync.
+
+1. Go to <https://colab.research.google.com> → **File → Upload notebook** →
+   pick `ShambaDoc_train_colab.ipynb`.
 2. **Runtime → Change runtime type → T4 GPU → Save.**
-3. Paste these cells and run them top to bottom:
+3. **Runtime → Run all.** After ~20–40 min the last cell downloads
+   `plant_disease.tflite` + `labels.txt` to your computer.
+
+### Alternative: clone the repo
+
+Only works once the latest trainer is pushed to the default branch. Paste and
+run top to bottom:
 
 ```python
 # Cell 1 — get the training script
@@ -38,7 +50,7 @@ files.download("plant_disease.tflite")
 files.download("labels.txt")
 ```
 
-4. Move both downloaded files into:
+Then move both downloaded files into:
 
 ```
 mobile/assets/models/plant_disease.tflite
@@ -66,7 +78,11 @@ The app and the model must agree exactly:
   head with the base frozen, then fine-tune the top ~30 layers.
 - Class imbalance is handled with per-class `class_weight`.
 - Export uses dynamic-range quantization (`Optimize.DEFAULT`) — smaller file,
-  float32 input/output preserved so `tflite_flutter` stays happy.
+  float32 input/output preserved so `tflite_flutter` stays happy. On current
+  Colab (TF ≥ 2.16 / Keras 3) it converts via an exported SavedModel, since
+  `from_keras_model` is unreliable there; it falls back to `from_keras_model`
+  on Keras 2. After export it loads the `.tflite` back and asserts the
+  `float32 [1,224,224,3] → [1,26]` contract before finishing.
 - This is trained on lab/greenhouse imagery (esp. PlantVillage). Accuracy on
   real Kenyan field photos will be lower — good enough for a demo/pilot, not a
   substitute for a field-collected dataset before wide release.
