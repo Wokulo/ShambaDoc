@@ -40,6 +40,21 @@ class TFLiteService {
     var image = img.decodeImage(imageData);
     if (image == null) throw Exception('Could not decode image');
 
+    // Centre-crop to a square BEFORE resizing. Training saw PlantVillage's
+    // 256x256 square images, so tf.image.resize never changed their aspect
+    // ratio. A phone photo is 4:3 or 16:9, and resizing that straight to
+    // 224x224 squashes the leaf horizontally by a third — a distortion the
+    // model never saw in training, on top of the lab-vs-field gap it already
+    // has. Cropping the centre keeps leaf geometry true to training.
+    final side = image.width < image.height ? image.width : image.height;
+    image = img.copyCrop(
+      image,
+      x: (image.width - side) ~/ 2,
+      y: (image.height - side) ~/ 2,
+      width: side,
+      height: side,
+    );
+
     image = img.copyResize(image, width: inputSize, height: inputSize);
 
     var input = List.generate(1, (i) => List.generate(inputSize, (y) => List.generate(inputSize, (x) {
