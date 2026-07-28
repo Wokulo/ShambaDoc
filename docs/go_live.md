@@ -98,6 +98,27 @@ flutter pub get
 flutter build apk --release --dart-define=SHAMBADOC_API_URL=https://<your-backend-domain>/api --dart-define=PLANT_ID_API_KEY=<plant-id-key>
 ```
 
+### Use `--split-per-abi` for sideloaded pilot APKs
+
+A universal APK is **75.8 MB** because it carries three copies of the native libraries
+(Flutter engine + TFLite runtime), including an `x86_64` slice that only Android
+emulators use. Adding `--split-per-abi` produces one APK per architecture:
+
+| Artifact | Size | Who needs it |
+|----------|------|--------------|
+| `app-arm64-v8a-release.apk` | 28.6 MB | Almost every phone from ~2016 onward |
+| `app-armeabi-v7a-release.apk` | 24.2 MB | Older / entry-level 32-bit devices |
+| `app-x86_64-release.apk` | 31.8 MB | Emulators only — do not distribute |
+| `app-release.apk` (universal) | 75.8 MB | Fallback if you can't tell which device |
+
+```bash
+flutter build apk --release --split-per-abi --dart-define=SHAMBADOC_API_URL=https://<your-backend-domain>/api --dart-define=PLANT_ID_API_KEY=<plant-id-key>
+```
+
+This matters for the pilot: farmers download over mobile data, so shipping the arm64
+APK cuts the download by roughly two-thirds. Google Play handles this automatically
+via the app bundle, so the split only applies to APKs you distribute yourself.
+
 For Google Play:
 
 ```bash
@@ -129,8 +150,13 @@ Mobile:
 
 ## 7. Current Blockers To Resolve Before Public Launch
 
-- Install Flutter/Dart on the build machine or build from a machine that has Flutter installed.
-- Add real TFLite model and labels in `mobile/assets/models/`.
+Already done:
+
+- ~~Install Flutter/Dart on the build machine~~ — Flutter 3.44 / Dart 3.12 installed, release APK builds.
+- ~~Add real TFLite model and labels in `mobile/assets/models/`~~ — 18-class MobileNetV2 bundled; offline scanning works.
+
+Still outstanding:
+
 - Configure Firebase Android app files.
 - Add Google Maps API key to Android native configuration.
 - Set production backend secrets in the hosting provider.

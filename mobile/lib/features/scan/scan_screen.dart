@@ -22,7 +22,7 @@ class _ScanScreenState extends State<ScanScreen> {
   List<CameraDescription>? _cameras;
   bool _isReady = false;
   bool _isProcessing = false;
-  File? _capturedImage;
+  String? _initError;
 
   @override
   void initState() {
@@ -31,22 +31,30 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _initCamera() async {
-    final status = await Permission.camera.request();
-    if (!status.isGranted) return;
+    try {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        throw Exception('Camera permission denied. Enable it in system settings.');
+      }
 
-    _cameras = await availableCameras();
-    if (_cameras == null || _cameras!.isEmpty) return;
+      _cameras = await availableCameras();
+      if (_cameras == null || _cameras!.isEmpty) {
+        throw Exception('No camera found on this device.');
+      }
 
-    _cameraController = CameraController(
-      _cameras!.first,
-      ResolutionPreset.high,
-      enableAudio: false,
-    );
+      _cameraController = CameraController(
+        _cameras!.first,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
 
-    await _cameraController!.initialize();
-    await TFLiteService().init();
+      await _cameraController!.initialize();
+      await TFLiteService().init();
 
-    if (mounted) setState(() => _isReady = true);
+      if (mounted) setState(() => _isReady = true);
+    } catch (e) {
+      if (mounted) setState(() => _initError = '$e');
+    }
   }
 
   Future<void> _takePhoto() async {
@@ -58,7 +66,6 @@ class _ScanScreenState extends State<ScanScreen> {
     try {
       final XFile photo = await _cameraController!.takePicture();
       final File imageFile = File(photo.path);
-      setState(() => _capturedImage = imageFile);
 
       Position? position;
       try {
@@ -107,7 +114,10 @@ class _ScanScreenState extends State<ScanScreen> {
           arguments: {'scan': scan, 'image': imageFile});
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
@@ -121,6 +131,31 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_initError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Scan')),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.no_photography_outlined, size: 48),
+              const SizedBox(height: 16),
+              Text(_initError!, textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () {
+                  setState(() => _initError = null);
+                  _initCamera();
+                },
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (!_isReady) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }

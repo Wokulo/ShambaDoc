@@ -54,10 +54,13 @@ cd mobile
 flutter pub get
 ```
 
-### Add AI Model
-Place your TensorFlow Lite model and labels in:
+### AI Model
+Already bundled — a 2.5 MB dynamic-range-quantized MobileNetV2 covering 18 classes
+across maize, tomato, potato and pepper:
 - `assets/models/plant_disease.tflite`
 - `assets/models/labels.txt`
+
+To retrain, see `mobile/model_training/README.md`.
 
 ### Run
 ```bash
@@ -65,7 +68,7 @@ flutter run
 ```
 
 ### Features
-- **Offline-first** TFLite disease detection (26 classes)
+- **Offline-first** TFLite disease detection (18 classes)
 - **Cloud fallback** via Plant.id API when confidence < 75%
 - **Bilingual** support (English / Kiswahili)
 - **GPS tagging** for scan locations

@@ -121,6 +121,20 @@ CREATE TRIGGER update_dealers_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Seed data: demo agro-dealers
+--
+-- The ON CONFLICT below needs a unique index to bite: `id` is a SERIAL, so it is
+-- freshly generated on every INSERT and never conflicts. Without this index the
+-- seed rows are re-inserted on each deploy (preDeployCommand runs migrate every
+-- time) and the dealer map fills up with duplicates.
+--
+-- Drop any duplicates a pre-fix deploy already created, keeping the lowest id,
+-- so the unique index can be built on an existing database.
+DELETE FROM agro_dealers a
+    USING agro_dealers b
+    WHERE a.id > b.id AND a.name = b.name;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dealers_name_unique ON agro_dealers(name);
+
 INSERT INTO agro_dealers (name, phone, email, address, latitude, longitude, county, products, is_verified, is_active)
 VALUES
     ('Kisumu Agrovet', '+254712345678', 'kisumu@agrovet.co.ke', 'Oginga Odinga St, Kisumu', -0.1022, 34.7617, 'Kisumu', ARRAY['Fungicides', 'Seeds', 'Fertilizers'], true, true),

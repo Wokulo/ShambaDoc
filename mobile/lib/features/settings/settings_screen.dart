@@ -88,8 +88,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Log Out', style: TextStyle(color: Colors.red)),
             onTap: () async {
+              final navigator = Navigator.of(context);
               await AuthService().signOut();
-              if (mounted) Navigator.pop(context);
+              navigator.pop();
             },
           ),
         ],

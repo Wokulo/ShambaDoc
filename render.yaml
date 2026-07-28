@@ -5,6 +5,11 @@ services:
     rootDir: backend
     plan: starter
     healthCheckPath: /health
+    # Applies database/schema.sql before the new instance takes traffic, so the
+    # database is provisioned by the deploy instead of by a manual psql step.
+    # Kept out of `npm start` deliberately: /health must stay up even if the
+    # database is unreachable.
+    preDeployCommand: npm run migrate
     envVars:
       - key: NODE_ENV
         value: production
@@ -32,6 +37,10 @@ services:
         fromDatabase:
           name: shambadoc-postgres
           property: password
+      # Render's managed Postgres requires TLS. Without this, db.js falls through
+      # to `ssl: false` and every query fails even though the service boots.
+      - key: DB_SSL
+        value: 'true'
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: FIREBASE_PRIVATE_KEY_ID

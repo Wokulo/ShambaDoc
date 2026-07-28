@@ -1,16 +1,16 @@
 # AI Model Assets
 
-This directory must contain the on-device classifier before the scan feature works.
+This directory contains the on-device classifier that powers offline scanning.
 
-## Required files
+## Files
 
 | File | Status | Notes |
 |------|--------|-------|
-| `plant_disease.tflite` | **MISSING — you must add this** | The TensorFlow Lite crop-disease classifier. |
-| `labels.txt` | Placeholder present | One class per line. **Must match the model's output order exactly.** |
+| `plant_disease.tflite` | Present (2.5 MB) | MobileNetV2, dynamic-range quantized, trained on 18 PlantVillage classes (maize, tomato, potato, pepper). |
+| `labels.txt` | Present (18 lines) | One class per line, in the model's exact output order. |
 
-Until `plant_disease.tflite` exists, `TFLiteService.init()` throws and a scan shows
-"Failed to analyze image" — the rest of the app still runs.
+Both are bundled via `pubspec.yaml` (`assets/models/`), so a release APK scans
+offline with no backend and no Firebase.
 
 ## Model contract (see `lib/ai/tflite_service.dart`)
 
@@ -20,13 +20,19 @@ Until `plant_disease.tflite` exists, `TFLiteService.init()` throws and a scan sh
   single underscores become spaces in the UI). A healthy class is `Crop___healthy`.
 - `numClasses` in `tflite_service.dart` (currently 18) must equal `N`.
 
-If you train a **quantized** model, the input/output are `uint8` and the preprocessing
-in `tflite_service.dart` must change — it currently assumes float32.
+The bundled model uses **dynamic-range** quantization: weights are int8 but the
+input/output tensors stay float32, so the `[0, 1]` preprocessing in
+`tflite_service.dart` is correct as written. A **full-integer** quantized model would
+have `uint8` input/output and would require changing that preprocessing.
 
-## Fastest path to a real model
+Note the model's first layer rescales `[0, 1]` → `[-1, 1]` internally (MobileNetV2's
+expected range), which is why the app only divides by 255.
 
-1. Train MobileNetV2 transfer-learning on the PlantVillage dataset (or a Kenya-specific
-   crop set), constrained to the crops/classes in `labels.txt`.
-2. Export to TFLite: `converter = tf.lite.TFLiteConverter.from_keras_model(model)`.
-3. Save the exported model here as `plant_disease.tflite` and overwrite `labels.txt`
-   with the exact class order used during training.
+## Retraining / extending the class list
+
+1. Open [`../../model_training/ShambaDoc_train_colab.ipynb`](../../model_training/README.md)
+   on Google Colab (free GPU) and run the cells.
+2. It trains MobileNetV2 transfer-learning on PlantVillage and exports
+   `plant_disease.tflite` + `labels.txt`.
+3. Copy both files here, then update `numClasses` in `lib/ai/tflite_service.dart` if
+   the class count changed.
