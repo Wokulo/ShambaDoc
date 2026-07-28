@@ -28,7 +28,13 @@ Run on Google Colab (free GPU):
 Then download `plant_disease.tflite` + `labels.txt` and drop them into
   mobile/assets/models/
 
-Runtime: ~15-30 min on a Colab T4 GPU. No TensorFlow Datasets needed.
+Runtime: ~45-90 min on a Colab T4 GPU (the heavier augmentation and longer
+fine-tune cost more than the original ~15-30 min run). No TFDS needed.
+
+The run ends by printing TWO accuracies -- a clean one and a deliberately
+pessimistic "field-proxy" one. Read the note it prints: the clean number is
+inflated by near-duplicate leakage in PlantVillage and neither number predicts
+accuracy on real farmer photos.
 """
 
 import os
@@ -102,12 +108,94 @@ PLANT_VILLAGE_DIR = os.environ.get(
 )
 
 
+def _random_rotate_and_zoom(img):
+    """Random rotation (+/-25 deg) and 0.7-1.0x centre zoom, via crop+resize.
+
+    tf.image has no rotation op, and pulling in tensorflow_addons just for one
+    is not worth the dependency, so rotation is done with a rotation matrix
+    through tf.raw_ops.ImageProjectiveTransformV3 (the op Keras' own
+    RandomRotation layer uses underneath).
+    """
+    angle = tf.random.uniform([], -25.0, 25.0) * np.pi / 180.0
+    cos_a, sin_a = tf.cos(angle), tf.sin(angle)
+    centre = tf.cast(IMG_SIZE, tf.float32) / 2.0
+    # Offsets keep the rotation about the image centre rather than the origin.
+    x_off = centre - cos_a * centre + sin_a * centre
+    y_off = centre - sin_a * centre - cos_a * centre
+    transform = tf.stack(
+        [cos_a, -sin_a, x_off, sin_a, cos_a, y_off, 0.0, 0.0]
+    )[tf.newaxis, :]
+    img = tf.raw_ops.ImageProjectiveTransformV3(
+        images=img[tf.newaxis, ...],
+        transforms=transform,
+        output_shape=tf.constant([IMG_SIZE, IMG_SIZE], tf.int32),
+        fill_value=0.0,
+        interpolation="BILINEAR",
+        fill_mode="REFLECT",
+    )[0]
+
+    # Random zoom: crop a 70-100% centre-ish window, then resize back up. This
+    # is what varying phone-to-leaf distance actually looks like.
+    scale = tf.random.uniform([], 0.7, 1.0)
+    crop_size = tf.cast(tf.cast(IMG_SIZE, tf.float32) * scale, tf.int32)
+    img = tf.image.random_crop(img, size=[crop_size, crop_size, 3])
+    img = tf.image.resize(img, (IMG_SIZE, IMG_SIZE))
+    return img
+
+
 def augment(img, label):
+    """Field-condition augmentation.
+
+    The old version only flipped and nudged brightness/contrast by 10%, which
+    teaches the model almost nothing about the conditions it actually fails in.
+    PlantVillage is a lab dataset -- one plucked leaf, even lighting, plain
+    background, always upright and centred -- so a model trained on it near
+    memorises that setup. Farmers shoot leaves still on the plant, at an angle,
+    in harsh sun or shade, from varying distance, with a cheap sensor.
+    Everything below simulates one of those gaps.
+    """
     img = tf.image.random_flip_left_right(img)
-    img = tf.image.random_brightness(img, 0.1)
-    img = tf.image.random_contrast(img, 0.9, 1.1)
+    img = tf.image.random_flip_up_down(img)
+    img = _random_rotate_and_zoom(img)
+
+    # Lighting: full sun to open shade is a far wider swing than +/-10%.
+    img = tf.image.random_brightness(img, 0.30)
+    img = tf.image.random_contrast(img, 0.6, 1.5)
+    # Colour: white balance drifts hard between phones and between sun/shade.
+    img = tf.image.random_saturation(img, 0.6, 1.5)
+    img = tf.image.random_hue(img, 0.04)
+
+    # Sensor noise + focus miss on a cheap camera.
+    img = img + tf.random.normal(tf.shape(img), stddev=tf.random.uniform([], 0.0, 0.04))
+    img = tf.clip_by_value(img, 0.0, 1.0)
+
+    # JPEG artefacts: the app compresses before inference, the lab images did
+    # not. Needs uint8 round-trip, so it is done last.
+    img = tf.image.adjust_jpeg_quality(img, tf.random.uniform([], 40, 100, tf.int32))
     img = tf.clip_by_value(img, 0.0, 1.0)
     return img, label
+
+
+def field_proxy_corrupt(img, label):
+    """Fixed, deliberately harsh corruption used only for the field-proxy metric.
+
+    Clean validation accuracy on PlantVillage is a near-meaningless number (see
+    the note in main()), so this gives a second, pessimistic reading: the same
+    held-out images pushed toward field conditions. It is a proxy, not a
+    substitute for real farmer photos, but the gap between the two numbers is
+    an honest measure of how brittle the model is off-distribution.
+
+    Deterministic (fixed seed) so the metric is comparable across runs.
+    """
+    img = tf.image.adjust_brightness(img, 0.15)
+    img = tf.image.adjust_contrast(img, 0.75)
+    img = tf.image.adjust_saturation(img, 1.3)
+    img = tf.image.central_crop(img, 0.8)
+    img = tf.image.resize(img, (IMG_SIZE, IMG_SIZE))
+    img = img + tf.random.stateless_normal(tf.shape(img), seed=[7, 7], stddev=0.03)
+    img = tf.clip_by_value(img, 0.0, 1.0)
+    img = tf.image.adjust_jpeg_quality(img, 55)
+    return tf.clip_by_value(img, 0.0, 1.0), label
 
 
 def list_plant_village_files(name_map):
@@ -179,7 +267,14 @@ def build_dataset():
     val = (tf.data.Dataset.from_tensor_slices((va_p, va_l))
            .map(_decode, num_parallel_calls=AUTOTUNE)
            .batch(BATCH_SIZE).prefetch(AUTOTUNE))
-    return train, val
+    # Same held-out images, pushed toward field conditions. Reported alongside
+    # the clean number so the run ends with an honest pair, not one flattering
+    # figure. See the accuracy note printed at the end of main().
+    field_val = (tf.data.Dataset.from_tensor_slices((va_p, va_l))
+                 .map(_decode, num_parallel_calls=AUTOTUNE)
+                 .map(field_proxy_corrupt, num_parallel_calls=AUTOTUNE)
+                 .batch(BATCH_SIZE).prefetch(AUTOTUNE))
+    return train, val, field_val
 
 
 def build_model():
@@ -211,7 +306,7 @@ def main():
     class_weight = {i: total / (NUM_CLASSES * c) for i, c in enumerate(counts)}
 
     print("Building datasets...")
-    train_ds, val_ds = build_dataset()
+    train_ds, val_ds, field_val_ds = build_dataset()
 
     model, base = build_model()
     model.compile(
@@ -226,15 +321,59 @@ def main():
 
     print("\nPhase 2: fine-tuning top of MobileNetV2...")
     base.trainable = True
-    for layer in base.layers[:-30]:  # unfreeze only the top ~30 layers
+    # Unfreeze the top ~60 layers rather than ~30: with the much stronger
+    # augmentation above, the earlier setup underfits -- it cannot adapt enough
+    # of the feature extractor to cope with the added variation.
+    for layer in base.layers[:-60]:
         layer.trainable = False
+    # Keep every BatchNorm frozen. Fine-tuning BN on batches whose statistics
+    # differ from ImageNet's wrecks the pretrained running means, and it is the
+    # classic way a fine-tune scores well in training and badly at inference,
+    # where BN switches to those corrupted running statistics.
+    for layer in base.layers:
+        if isinstance(layer, tf.keras.layers.BatchNormalization):
+            layer.trainable = False
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(1e-5),
+        # 1e-5 across only 5 epochs barely moved the weights. 5e-5 with more
+        # epochs and early stopping actually lets the fine-tune converge under
+        # the heavier augmentation, without cooking the pretrained features.
+        optimizer=tf.keras.optimizers.Adam(5e-5),
         loss="sparse_categorical_crossentropy",
         metrics=["accuracy"],
     )
-    model.fit(train_ds, validation_data=val_ds, epochs=5,
-              class_weight=class_weight)
+    model.fit(
+        train_ds, validation_data=val_ds, epochs=15, class_weight=class_weight,
+        callbacks=[
+            tf.keras.callbacks.EarlyStopping(
+                monitor="val_accuracy", patience=3, restore_best_weights=True
+            ),
+            tf.keras.callbacks.ReduceLROnPlateau(
+                monitor="val_loss", factor=0.3, patience=2, min_lr=1e-6
+            ),
+        ],
+    )
+
+    # ---------------------------------------------------------------------
+    # Honest evaluation
+    # ---------------------------------------------------------------------
+    print("\nEvaluating...")
+    clean_loss, clean_acc = model.evaluate(val_ds, verbose=0)
+    field_loss, field_acc = model.evaluate(field_val_ds, verbose=0)
+    print(f"  clean val accuracy       : {clean_acc:.4f}")
+    print(f"  field-proxy val accuracy : {field_acc:.4f}")
+    print(
+        "\nREAD THIS BEFORE TRUSTING THE NUMBER ABOVE\n"
+        "  The clean figure is optimistic and always has been. PlantVillage\n"
+        "  holds many near-duplicate shots of the SAME physical leaf, and the\n"
+        "  split here is random, so near-duplicates of a leaf land in both\n"
+        "  train and validation. That measures memorisation as much as skill.\n"
+        "  The field-proxy figure re-scores the same held-out images under\n"
+        "  harsher light, colour, crop, noise and JPEG settings; the gap\n"
+        "  between the two is how brittle the model is off-distribution.\n"
+        "  Neither number predicts accuracy on real farmer photos. Only a\n"
+        "  test set of real field images can do that -- collect one during the\n"
+        "  pilot and evaluate against it before claiming any accuracy figure."
+    )
 
     print("\nExporting to TFLite...")
     out_dir = os.path.dirname(os.path.abspath(__file__))
