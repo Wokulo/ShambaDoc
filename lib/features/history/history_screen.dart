@@ -217,8 +217,9 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isHealthy = scan.disease.name.toLowerCase().contains('healthy');
-    final color = isHealthy ? AppColors.healthy : AppColors.diseased;
+    final isUnavailable = scan.predictionResult.status == PredictionStatus.unavailable;
+    final isHealthy = !isUnavailable && scan.disease.name.toLowerCase().contains('healthy');
+    final color = isUnavailable ? AppColors.warning : (isHealthy ? AppColors.healthy : AppColors.diseased);
     final fmt = DateFormat('dd MMM yyyy • HH:mm');
 
     return Dismissible(
@@ -301,21 +302,25 @@ class _HistoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(scan.disease.name,
+                    Text(
+                      isUnavailable ? 'Diagnosis unavailable' : scan.disease.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14)),
+                          fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
                     const SizedBox(height: 3),
-                    Text(scan.disease.cropType,
+                    Text(
+                      isUnavailable ? 'AI could not identify disease' : scan.disease.cropType,
                       style: const TextStyle(
-                          fontSize: 12, color: AppColors.textSecondary)),
+                          fontSize: 12, color: AppColors.textSecondary),
+                    ),
                     const SizedBox(height: 6),
                     Row(children: [
                       _Badge(
-                        label:
-                            '${(scan.disease.confidence * 100).toStringAsFixed(0)}%',
-                        color: color),
+                        label: isUnavailable ? 'N/A' : '${(scan.disease.confidence * 100).toStringAsFixed(0)}%',
+                        color: color,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(fmt.format(scan.timestamp),

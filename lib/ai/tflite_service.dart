@@ -34,23 +34,34 @@ class TFLiteService {
     _isInitialized = true;
   }
 
-  Future<DiseaseModel> predict(File imageFile) async {
+  Future<PredictionResult> predict(File imageFile) async {
     if (!_isInitialized) await init();
     if (!_modelAvailable) {
-      debugPrint('⚠️ API unavailable, using mock');
+      debugPrint('⚠️ API unavailable, using development fallback');
       return _mockPrediction();
     }
     try {
       var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
       request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-      final streamed = await request.send().timeout(const Duration(seconds: 15));
+      final streamed = await request.send().timeout(const Duration(seconds: 30));
       final body = await streamed.stream.bytesToString();
       if (streamed.statusCode != 200) throw Exception('API error ${streamed.statusCode}');
       final json = jsonDecode(body) as Map<String, dynamic>;
       final label = json['label'] as String;
       final confidence = (json['confidence'] as num).toDouble();
       debugPrint('✅ Predicted: $label (${(confidence*100).toStringAsFixed(1)}%)');
-      return _parseLabel(label, confidence);
+      final disease = _parseLabel(label, confidence);
+      final status = confidence < 0.40
+          ? PredictionStatus.unavailable
+          : (confidence < 0.75 ? PredictionStatus.uncertain : PredictionStatus.real);
+      return PredictionResult(
+        disease: disease,
+        status: status,
+        source: 'cloud_ai',
+        message: status == PredictionStatus.unavailable
+            ? 'AI could not confidently identify the disease.'
+            : null,
+      );
     } catch (e, stack) {
       debugPrint('❌ predict error: $e');
       debugPrint('$stack');
@@ -58,14 +69,14 @@ class TFLiteService {
     }
   }
 
-  DiseaseModel _mockPrediction() {
-    final mocks = [
-      _parseLabel('tomato___early_blight', 0.82),
-      _parseLabel('potato___late_blight', 0.91),
-      _parseLabel('corn___common_rust', 0.67),
-      _parseLabel('tomato___healthy', 0.95),
-    ];
-    return mocks[DateTime.now().second % mocks.length];
+  /// DEVELOPMENT FALLBACK ONLY — never present this as a real AI diagnosis
+  /// in production. If a real AI result is unavailable, the UI should clearly
+  /// state that diagnosis could not be confirmed rather than showing fabricated
+  /// disease results as authoritative.
+  PredictionResult _mockPrediction() {
+    return PredictionResult.unavailable(
+      message: 'Development fallback active — no real AI diagnosis available.',
+    );
   }
 
   DiseaseModel _parseLabel(String label, double confidence) {

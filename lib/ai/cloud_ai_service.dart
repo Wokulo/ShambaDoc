@@ -11,9 +11,7 @@ class CloudAIService {
   static const String _plantIdUrl =
       'https://api.plant.id/v2/health_assessment';
 
-  // ── Cloud prediction via Plant.id ──────────────────────────────────────────
-
-  static Future<DiseaseModel?> cloudPredict(File imageFile) async {
+  static Future<PredictionResult?> cloudPredict(File imageFile) async {
     if (_plantIdApiKey.isEmpty) {
       debugPrint('Plant.id API key not set — skipping cloud prediction');
       return null;
@@ -43,13 +41,25 @@ class CloudAIService {
         if (healthAssessment != null &&
             (healthAssessment['diseases'] as List?)?.isNotEmpty == true) {
           final top = (healthAssessment['diseases'] as List)[0];
-          return DiseaseModel(
+          final confidence = (top['probability'] as num?)?.toDouble() ?? 0.0;
+          final disease = DiseaseModel(
             name:        top['name'] ?? 'Unknown',
             description: top['disease_details']?['description']?['value'] ??
                 'No description available.',
             treatment:   _extractTreatment(top),
             cropType:    'Unknown',
-            confidence:  (top['probability'] as num?)?.toDouble() ?? 0.0,
+            confidence:  confidence,
+          );
+          final status = confidence < 0.40
+              ? PredictionStatus.unavailable
+              : (confidence < 0.75 ? PredictionStatus.uncertain : PredictionStatus.real);
+          return PredictionResult(
+            disease: disease,
+            status: status,
+            source: 'plant_id',
+            message: status == PredictionStatus.unavailable
+                ? 'AI could not confidently identify the disease.'
+                : null,
           );
         }
       }
@@ -59,8 +69,6 @@ class CloudAIService {
     return null;
   }
 
-  // ── Log scan to backend ────────────────────────────────────────────────────
-
   static Future<void> logScan(Map<String, dynamic> scanData) async {
     try {
       await ApiService.logScan(scanData);
@@ -68,8 +76,6 @@ class CloudAIService {
       debugPrint('logScan error: $e');
     }
   }
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
 
   static String _extractTreatment(dynamic d) {
     final t        = d['disease_details']?['treatment'];

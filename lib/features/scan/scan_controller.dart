@@ -10,7 +10,7 @@ class ScanController extends ChangeNotifier {
 
   bool isLoading = false;
   String? errorMessage;
-  DiseaseModel? result;
+  PredictionResult? result;
   File? selectedImage;
 
   Future<void> pickFromGallery() async {

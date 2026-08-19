@@ -1,45 +1,55 @@
 # ShambaDoc
 
-> AI-Powered Crop Disease Diagnosis for Kenyan Smallholder Farmers  
+> AI-Powered Connected Agriculture Ecosystem Platform for Kenyan Smallholder Farmers  
 > Campus Spark Innovation Challenge 2026
 
 ## Project Structure
 
 ```
 shambadoc/
-├── mobile/                 # Flutter mobile application
-│   ├── lib/
-│   │   ├── app/            # Routes & theming
-│   │   ├── ai/             # TFLite & Cloud AI services
-│   │   ├── services/       # Storage, API, Auth
-│   │   ├── features/       # Scan, History, Map, Settings
-│   │   ├── widgets/        # Reusable UI components
-│   │   └── l10n/           # English & Kiswahili localization
-│   ├── assets/
-│   │   ├── models/         # plant_disease.tflite + labels.txt
-│   │   ├── images/
-│   │   └── icons/
-│   └── pubspec.yaml
+├── lib/                        # Flutter mobile application
+│   ├── app/                    # Routes & theming
+│   ├── ai/                     # Cloud AI & prediction services
+│   ├── models/                 # Data models
+│   ├── services/               # Storage, API client, Auth
+│   ├── features/               # Scan, History, Map, Settings, Providers
+│   └── widgets/                # Reusable UI components
 │
-├── backend/                # Node.js REST API
+├── backend/                    # Node.js REST API
 │   ├── src/
-│   │   ├── middleware/     # Firebase & JWT auth
-│   │   ├── routes/         # API endpoints
-│   │   ├── controllers/    # Business logic
-│   │   └── services/       # Plant.id & Google Maps
+│   │   ├── middleware/         # Firebase & JWT auth
+│   │   ├── routes/             # API endpoints
+│   │   ├── controllers/        # Business logic
+│   │   └── services/           # Plant.id & Google Maps
 │   ├── database/
-│   │   └── schema.sql      # PostgreSQL schema
+│   │   └── schema.sql          # PostgreSQL schema
 │   ├── .env.example
 │   └── package.json
 │
-└── docs/                   # Architecture & setup guides
+└── docs/                       # Architecture & setup guides
 ```
 
-## Full Software Blueprint
+## Features
 
-The implementation blueprint is captured in `docs/software_design.md`. It maps the enhanced product requirements into releases, mobile architecture, backend APIs, data model, AI flow, privacy controls, revenue features, and MVP acceptance criteria.
+- **AI crop disease analysis** — Cloud AI with confidence scoring
+- **Farmer profiles** — Firebase-authenticated farmer accounts
+- **Disease cases** — Track and manage crop health issues
+- **Agronomist discovery** — Find nearby agricultural experts
+- **Government services** — County agricultural officers and advisories
+- **Agrovets** — Input supplier discovery and inquiries
+- **SACCOs** — Financial service discovery
+- **Agricultural insurance** — Provider discovery and inquiries
+- **Consultations** — Chat with agronomists and officers
+- **Notifications** — Real-time updates
+- **Location-based discovery** — GPS-tagged services
 
-For deployment, follow `docs/go_live.md`. It covers Render backend deployment, PostgreSQL setup, environment variables, and Android release builds.
+## Technology
+
+- **Frontend:** Flutter
+- **Backend:** Node.js / Express
+- **Database:** PostgreSQL
+- **Authentication:** Firebase Authentication (Phone)
+- **AI:** Cloud AI API with development fallback
 
 ## Mobile App (Flutter)
 
@@ -50,31 +60,35 @@ For deployment, follow `docs/go_live.md`. It covers Render backend deployment, P
 
 ### Setup
 ```bash
-cd mobile
 flutter pub get
 ```
 
-### AI Model
-Already bundled — a 2.5 MB dynamic-range-quantized MobileNetV2 covering 18 classes
-across maize, tomato, potato and pepper:
-- `assets/models/plant_disease.tflite`
-- `assets/models/labels.txt`
+### AI Model Requirement
 
-To retrain, see `mobile/model_training/README.md`.
+**Local TFLite model is NOT currently bundled.**
+
+The application requires `assets/models/plant_disease.tflite` for on-device AI inference. This model must be supplied before production deployment.
+
+Until the local model is available, the app uses:
+1. **Cloud AI API** (`https://shambadoc-api.onrender.com/predict`) — primary
+2. **Plant.id** — secondary fallback (requires `PLANT_ID_API_KEY`)
+3. **Development fallback** — returns `AI_UNAVAILABLE` status; never shown as a real diagnosis
+
+If no real AI result is available, the UI clearly states:
+> "Diagnosis unavailable — We could not obtain a reliable AI diagnosis at this time."
 
 ### Run
 ```bash
 flutter run
+# or with custom API URL
+flutter run --dart-define=SHAMBADOC_API_URL=https://your-api.example.com/api
 ```
 
-### Features
-- **Offline-first** TFLite disease detection (18 classes)
-- **Cloud fallback** via Plant.id API when confidence < 75%
-- **Bilingual** support (English / Kiswahili)
-- **GPS tagging** for scan locations
-- **Agro-dealer map** with nearest input suppliers
-- **Firebase Phone Auth** for farmer identity
-- **Local SQLite** history storage
+### Build
+```bash
+flutter build apk --debug   # Debug build
+flutter build apk --release # Release build
+```
 
 ## Backend API (Node.js)
 
@@ -102,23 +116,9 @@ npm run dev   # Development
 npm start     # Production
 ```
 
-### API Endpoints
+### Environment Variables
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | /health | None | Health check |
-| POST | /api/diagnose/log | Optional | Log a scan |
-| GET | /api/diagnose/heatmap | Firebase | Disease heatmap data |
-| POST | /api/diagnose/feedback | Optional | Submit feedback |
-| GET | /api/diagnose/stats | None | Regional statistics |
-| GET | /api/dealers | None | Nearby agro-dealers |
-| GET | /api/dealers/:id | None | Dealer details |
-| POST | /api/dealers | Firebase | Register dealer |
-| PUT | /api/dealers/:id | Firebase | Update dealer |
-
-## Environment Variables
-
-### Backend (.env)
+#### Backend (.env)
 ```bash
 PORT=3000
 NODE_ENV=development
@@ -143,6 +143,23 @@ JWT_EXPIRES_IN=7d
 PLANT_ID_API_KEY=your_plant_id_key
 GOOGLE_MAPS_API_KEY=your_google_maps_key
 ```
+
+#### Flutter (--dart-define)
+```bash
+# API base URL
+SHAMBADOC_API_URL=https://your-api.example.com/api
+
+# Plant.id API key (optional cloud fallback)
+PLANT_ID_API_KEY=your_plant_id_key
+```
+
+## Security
+
+- All protected endpoints require Firebase ID token via `Authorization: Bearer <token>`
+- Backend verifies tokens using `verifyFirebaseToken` middleware
+- Farmer data is scoped by authenticated `req.user.uid`
+- No tokens are stored in SharedPreferences or plain local storage
+- No client-supplied user IDs are trusted for protected routes
 
 ## Authors
 - Nicholas Matata

@@ -112,34 +112,46 @@ class _ScanScreenState extends State<ScanScreen>
       } catch (_) {}
 
       final tfResult = await TFLiteService().predict(imageFile);
-      DiseaseModel finalResult = tfResult;
+      PredictionResult finalResult = tfResult;
 
-      if (tfResult.confidence < 0.75) {
+      if (tfResult.status != PredictionStatus.real) {
         final connectivity = await Connectivity().checkConnectivity();
         if (!connectivity.contains(ConnectivityResult.none)) {
           final cloudResult = await CloudAIService.cloudPredict(imageFile);
-          if (cloudResult != null &&
-              cloudResult.confidence > tfResult.confidence) {
+          if (cloudResult != null && cloudResult.status == PredictionStatus.real) {
+            finalResult = cloudResult;
+          } else if (cloudResult != null && finalResult.status == PredictionStatus.unavailable) {
             finalResult = cloudResult;
           }
         }
       }
 
+      final isUnavailable = finalResult.status == PredictionStatus.unavailable;
+
+      if (isUnavailable) {
+        if (mounted) {
+          _showUnavailableDialog(context, imageFile, position, finalResult.message);
+        }
+        return;
+      }
+
+      final disease = finalResult.disease!;
       final scan = ScanResult(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         imagePath: imageFile.path,
-        disease: finalResult,
+        disease: disease,
         timestamp: DateTime.now(),
         latitude: position?.latitude,
         longitude: position?.longitude,
+        predictionResult: finalResult,
       );
       await StorageService().saveScan(scan);
 
       CloudAIService.logScan({
         'scan_id': scan.id,
-        'disease': finalResult.name,
-        'confidence': finalResult.confidence,
-        'crop_type': finalResult.cropType,
+        'disease': disease.name,
+        'confidence': disease.confidence,
+        'crop_type': disease.cropType,
         'lat': position?.latitude,
         'lng': position?.longitude,
         'timestamp': scan.timestamp.toIso8601String(),
@@ -147,13 +159,52 @@ class _ScanScreenState extends State<ScanScreen>
 
       if (mounted) {
         Navigator.pushNamed(context, AppRoutes.result,
-            arguments: {'scan': scan, 'image': imageFile});
+            arguments: {'scan': scan, 'image': imageFile, 'prediction': finalResult});
       }
     } catch (e) {
       _showError('Analysis failed. Please retake the photo in better light.');
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  void _showUnavailableDialog(BuildContext context, File imageFile, Position? position, String? message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Icon(Icons.wifi_off_rounded, color: AppColors.warning),
+          SizedBox(width: 12),
+          Text('Diagnosis Unavailable'),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(message ?? 'We could not obtain a reliable AI diagnosis at this time.',
+            style: const TextStyle(fontSize: 15, height: 1.5)),
+          const SizedBox(height: 12),
+          const Text('Possible reasons:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          const SizedBox(height: 6),
+          const Text('• AI model unavailable\n• Internet connection unavailable\n• Server unavailable',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5)),
+        ]),
+        actions: [
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.person_rounded),
+            label: const Text('Consult Agronomist'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _processImage(imageFile);
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Try Again'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showError(String msg) {

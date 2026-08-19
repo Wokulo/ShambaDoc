@@ -1,3 +1,45 @@
+enum PredictionStatus { real, uncertain, unavailable }
+
+class PredictionResult {
+  final DiseaseModel? disease;
+  final PredictionStatus status;
+  final String source;
+  final String? message;
+
+  const PredictionResult({
+    this.disease,
+    required this.status,
+    required this.source,
+    this.message,
+  });
+
+  factory PredictionResult.real(DiseaseModel disease, String source) {
+    return PredictionResult(
+      disease: disease,
+      status: PredictionStatus.real,
+      source: source,
+    );
+  }
+
+  factory PredictionResult.uncertain(DiseaseModel disease, String source, {String? message}) {
+    return PredictionResult(
+      disease: disease,
+      status: PredictionStatus.uncertain,
+      source: source,
+      message: message,
+    );
+  }
+
+  factory PredictionResult.unavailable({String? message}) {
+    return PredictionResult(
+      disease: null,
+      status: PredictionStatus.unavailable,
+      source: 'none',
+      message: message ?? 'AI diagnosis is currently unavailable.',
+    );
+  }
+}
+
 class DiseaseModel {
   final String name;
   final String scientificName;
@@ -77,6 +119,7 @@ class ScanResult {
   final double? longitude;
   final String? farmNote;
   final String? plotName;
+  final PredictionResult predictionResult;
 
   ScanResult({
     required this.id,
@@ -87,6 +130,7 @@ class ScanResult {
     this.longitude,
     this.farmNote,
     this.plotName,
+    required this.predictionResult,
   });
 
   Map<String, dynamic> toMap() {
@@ -106,6 +150,9 @@ class ScanResult {
       'longitude': longitude,
       'farm_note': farmNote,
       'plot_name': plotName,
+      'prediction_status': predictionResult.status.name,
+      'prediction_source': predictionResult.source,
+      'prediction_message': predictionResult.message,
     };
   }
 }

@@ -22,7 +22,7 @@ class StorageService {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE scans (
@@ -40,7 +40,10 @@ class StorageService {
             latitude REAL,
             longitude REAL,
             farm_note TEXT,
-            plot_name TEXT
+            plot_name TEXT,
+            prediction_status TEXT,
+            prediction_source TEXT,
+            prediction_message TEXT
           )
         ''');
       },
@@ -53,6 +56,11 @@ class StorageService {
           await _addColumnIfMissing(db, 'scans', 'treatment', 'TEXT');
           await _addColumnIfMissing(db, 'scans', 'dosage', 'TEXT');
           await _addColumnIfMissing(db, 'scans', 'plot_name', 'TEXT');
+        }
+        if (oldVersion < 3) {
+          await _addColumnIfMissing(db, 'scans', 'prediction_status', 'TEXT');
+          await _addColumnIfMissing(db, 'scans', 'prediction_source', 'TEXT');
+          await _addColumnIfMissing(db, 'scans', 'prediction_message', 'TEXT');
         }
       },
     );
@@ -74,24 +82,38 @@ class StorageService {
   Future<List<ScanResult>> getScanHistory() async {
     if (_db == null) return [];
     final maps = await _db!.query('scans', orderBy: 'timestamp DESC');
-    return maps.map((map) => ScanResult(
-      id: map['id'] as String,
-      imagePath: map['image_path'] as String,
-      disease: DiseaseModel(
-        name: map['disease_name'] as String,
-        confidence: (map['confidence'] as num).toDouble(),
-        description: map['description'] as String? ?? '',
-        treatment: map['treatment'] as String? ?? '',
-        dosage: map['dosage'] as String? ?? '',
-        cropType: map['crop_type'] as String? ?? 'Unknown',
-        severity: map['severity'] as String? ?? 'moderate',
-      ),
-      timestamp: DateTime.parse(map['timestamp'] as String),
-      latitude: (map['latitude'] as num?)?.toDouble(),
-      longitude: (map['longitude'] as num?)?.toDouble(),
-      farmNote: map['farm_note'] as String?,
-      plotName: map['plot_name'] as String?,
-    )).toList();
+    return maps.map((map) {
+      final statusStr = map['prediction_status'] as String? ?? 'real';
+      final status = PredictionStatus.values.firstWhere(
+        (s) => s.name == statusStr,
+        orElse: () => PredictionStatus.real,
+      );
+      final predictionResult = PredictionResult(
+        disease: DiseaseModel(
+          name: map['disease_name'] as String,
+          confidence: (map['confidence'] as num).toDouble(),
+          description: map['description'] as String? ?? '',
+          treatment: map['treatment'] as String? ?? '',
+          dosage: map['dosage'] as String? ?? '',
+          cropType: map['crop_type'] as String? ?? 'Unknown',
+          severity: map['severity'] as String? ?? 'moderate',
+        ),
+        status: status,
+        source: map['prediction_source'] as String? ?? 'unknown',
+        message: map['prediction_message'] as String?,
+      );
+      return ScanResult(
+        id: map['id'] as String,
+        imagePath: map['image_path'] as String,
+        disease: predictionResult.disease!,
+        timestamp: DateTime.parse(map['timestamp'] as String),
+        latitude: (map['latitude'] as num?)?.toDouble(),
+        longitude: (map['longitude'] as num?)?.toDouble(),
+        farmNote: map['farm_note'] as String?,
+        plotName: map['plot_name'] as String?,
+        predictionResult: predictionResult,
+      );
+    }).toList();
   }
 
   Future<void> deleteScan(String id) async {

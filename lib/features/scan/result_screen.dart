@@ -17,11 +17,94 @@ class ResultScreen extends StatelessWidget {
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final ScanResult? scan = args?['scan'];
     final File? image = args?['image'];
+    final PredictionResult? prediction = args?['prediction'];
 
-    if (scan == null) {
+    if (scan == null || prediction == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Result')),
         body: const Center(child: Text('No result data available.')),
+      );
+    }
+
+    final isUnavailable = prediction.status == PredictionStatus.unavailable;
+
+    if (isUnavailable) {
+      return Scaffold(
+        backgroundColor: AppColors.surface,
+        appBar: AppBar(
+          backgroundColor: AppColors.warning,
+          title: const Text('Diagnosis Unavailable',
+            style: TextStyle(color: Colors.white)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withOpacity(0.15),
+                      shape: BoxShape.circle),
+                    child: Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Text('Diagnosis Unavailable',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary))),
+                ]),
+                const SizedBox(height: 12),
+                Text(
+                  prediction.message ??
+                      'We could not obtain a reliable AI diagnosis at this time.',
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
+                ),
+                const SizedBox(height: 12),
+                const Text('Possible reasons:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const SizedBox(height: 6),
+                const Text('• AI model unavailable\n• Internet connection unavailable\n• Server unavailable',
+                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.5)),
+              ]),
+            ),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, AppRoutes.agronomists),
+                  icon: const Icon(Icons.person_rounded, size: 18),
+                  label: const Text('Consult Agronomist'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, AppRoutes.scan),
+                  icon: const Icon(Icons.camera_alt_rounded, size: 18),
+                  label: const Text('Scan Again'),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => Navigator.pushNamed(context, AppRoutes.scan),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text('Try Another Photo'),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       );
     }
 
@@ -31,7 +114,6 @@ class ResultScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: CustomScrollView(slivers: [
-        // Hero image app bar
         SliverAppBar(
           expandedHeight: 240,
           pinned: true,
@@ -54,7 +136,7 @@ class ResultScreen extends StatelessWidget {
             ),
           ],
           flexibleSpace: FlexibleSpaceBar(
-            title: Text('Diagnosis Result',
+            title: Text('AI Diagnosis',
               style: const TextStyle(
                   fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
             background: image != null
@@ -84,37 +166,29 @@ class ResultScreen extends StatelessWidget {
                   ),
           ),
         ),
-
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              // Status banner
               _StatusBanner(isHealthy: isHealthy, disease: disease),
               const SizedBox(height: 16),
-
-              // Confidence & severity chips
+              _SourceChip(source: prediction.source, status: prediction.status),
+              const SizedBox(height: 16),
               _ConfidenceCard(disease: disease),
               const SizedBox(height: 16),
-
-              // Disease details
               DiseaseCard(disease: disease),
               const SizedBox(height: 16),
-
-              // Treatment (only if diseased)
               if (!isHealthy) ...[
                 TreatmentCard(disease: disease),
                 const SizedBox(height: 16),
               ],
-
-              // Action buttons
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () =>
                         Navigator.pushNamed(context, AppRoutes.map),
                     icon: const Icon(Icons.store_rounded, size: 18),
-                    label: const Text('Find Dealer'),
+                    label: const Text('Find Agrovet'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -128,8 +202,6 @@ class ResultScreen extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 12),
-
-              // Feedback
               Center(
                 child: TextButton.icon(
                   onPressed: () => _showFeedback(context, scan),
@@ -286,6 +358,47 @@ class _StatusBanner extends StatelessWidget {
                   fontSize: 13, color: AppColors.textSecondary)),
           ],
         )),
+      ]),
+    );
+  }
+}
+
+class _SourceChip extends StatelessWidget {
+  final String source;
+  final PredictionStatus status;
+  const _SourceChip({required this.source, required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    String label;
+    Color color;
+    switch (status) {
+      case PredictionStatus.real:
+        label = 'AI analysis';
+        color = AppColors.success;
+        break;
+      case PredictionStatus.uncertain:
+        label = 'Low confidence';
+        color = AppColors.warning;
+        break;
+      case PredictionStatus.unavailable:
+        label = 'Unavailable';
+        color = AppColors.error;
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.info_outline_rounded, size: 14, color: color),
+        const SizedBox(width: 5),
+        Text(label,
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600, color: color)),
       ]),
     );
   }
