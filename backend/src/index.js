@@ -7,6 +7,18 @@ const rateLimit = require('express-rate-limit');
 
 const diagnoseRoutes = require('./routes/diagnose');
 const dealerRoutes = require('./routes/dealers');
+const farmerRoutes = require('./routes/farmers');
+const agronomistRoutes = require('./routes/agronomists');
+const governmentRoutes = require('./routes/government');
+const agrovetRoutes = require('./routes/agrovets');
+const saccoRoutes = require('./routes/saccos');
+const insuranceRoutes = require('./routes/insurance');
+const consultationRoutes = require('./routes/consultations');
+const messageRoutes = require('./routes/messages');
+const notificationRoutes = require('./routes/notifications');
+const caseRoutes = require('./routes/cases');
+const searchRoutes = require('./routes/search');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -62,6 +74,18 @@ app.get('/', (req, res) => {
 
 app.use('/api/diagnose', diagnoseRoutes);
 app.use('/api/dealers', dealerRoutes);
+app.use('/api/farmers', farmerRoutes);
+app.use('/api/agronomists', agronomistRoutes);
+app.use('/api/government', governmentRoutes);
+app.use('/api/agrovets', agrovetRoutes);
+app.use('/api/saccos', saccoRoutes);
+app.use('/api/insurance', insuranceRoutes);
+app.use('/api/consultations', consultationRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/cases', caseRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });

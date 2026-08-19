@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS scans (
     region VARCHAR(100),
     scanned_at TIMESTAMP NOT NULL,
     image_url TEXT,
+    plot_id INTEGER REFERENCES plots(id) ON DELETE SET NULL,
+    model_source VARCHAR(20) DEFAULT 'offline' CHECK (model_source IN ('offline', 'cloud', 'human')),
+    sync_status VARCHAR(20) DEFAULT 'synced' CHECK (sync_status IN ('pending', 'synced', 'failed')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -32,6 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_scans_crop_type ON scans(crop_type);
 CREATE INDEX IF NOT EXISTS idx_scans_scanned_at ON scans(scanned_at);
 CREATE INDEX IF NOT EXISTS idx_scans_location ON scans(latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_scans_region ON scans(region);
+CREATE INDEX IF NOT EXISTS idx_scans_plot_id ON scans(plot_id);
+CREATE INDEX IF NOT EXISTS idx_scans_confidence_tier ON scans(confidence_tier);
+CREATE INDEX IF NOT EXISTS idx_scans_severity ON scans(severity);
 
 -- Table: feedback
 -- Stores user feedback on diagnosis accuracy
@@ -307,3 +313,456 @@ CREATE TABLE IF NOT EXISTS human_escalations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_escalations_status ON human_escalations(status);
+
+-- Ecosystem tables for Connected Agriculture Platform
+
+-- Farmer profiles (extended user data)
+CREATE TABLE IF NOT EXISTS farmer_profiles (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) UNIQUE NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    full_name VARCHAR(255) NOT NULL,
+    county VARCHAR(100) NOT NULL,
+    sub_county VARCHAR(100),
+    ward VARCHAR(100),
+    farm_size_hectares DECIMAL(8,2),
+    primary_crops TEXT[],
+    farming_experience_years INTEGER,
+    phone_number VARCHAR(50),
+    profile_photo_url TEXT,
+    is_verified BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_farmer_profiles_user_id ON farmer_profiles(user_id);
+CREATE INDEX IF NOT EXISTS idx_farmer_profiles_county ON farmer_profiles(county);
+
+-- Farms / plots (extend existing plots table)
+ALTER TABLE plots ADD COLUMN IF NOT EXISTS farmer_profile_id INTEGER REFERENCES farmer_profiles(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_plots_farmer_profile_id ON plots(farmer_profile_id);
+
+-- Agronomists
+CREATE TABLE IF NOT EXISTS agronomists (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) UNIQUE REFERENCES users(uid) ON DELETE CASCADE,
+    full_name VARCHAR(255) NOT NULL,
+    professional_title VARCHAR(255),
+    qualification VARCHAR(255),
+    specialization TEXT[],
+    county VARCHAR(100) NOT NULL,
+    sub_county VARCHAR(100),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    availability VARCHAR(50) DEFAULT 'available' CHECK (availability IN ('available', 'busy', 'unavailable')),
+    years_of_experience INTEGER,
+    profile_photo_url TEXT,
+    bio TEXT,
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'under_review', 'verified', 'rejected')),
+    rating DECIMAL(3,2) DEFAULT 0.0 CHECK (rating >= 0 AND rating <= 5),
+    review_count INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_agronomists_county ON agronomists(county);
+CREATE INDEX IF NOT EXISTS idx_agronomists_verification ON agronomists(verification_status);
+CREATE INDEX IF NOT EXISTS idx_agronomists_location ON agronomists(latitude, longitude);
+
+-- Government agricultural officers
+CREATE TABLE IF NOT EXISTS government_officers (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) UNIQUE REFERENCES users(uid) ON DELETE CASCADE,
+    full_name VARCHAR(255) NOT NULL,
+    professional_title VARCHAR(255),
+    designation VARCHAR(255) NOT NULL,
+    department VARCHAR(255),
+    county VARCHAR(100) NOT NULL,
+    sub_county VARCHAR(100),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    office_address TEXT,
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'under_review', 'verified', 'rejected')),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_gov_officers_county ON government_officers(county);
+CREATE INDEX IF NOT EXISTS idx_gov_officers_verification ON government_officers(verification_status);
+
+-- Agrovets (extended dealer profiles)
+CREATE TABLE IF NOT EXISTS agrovets (
+    id SERIAL PRIMARY KEY,
+    dealer_id INTEGER UNIQUE REFERENCES agro_dealers(id) ON DELETE CASCADE,
+    business_name VARCHAR(255) NOT NULL,
+    owner_name VARCHAR(255),
+    license_number VARCHAR(100),
+    license_verified BOOLEAN DEFAULT false,
+    physical_address TEXT NOT NULL,
+    county VARCHAR(100) NOT NULL,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    opening_hours JSONB,
+    delivery_available BOOLEAN DEFAULT false,
+    delivery_radius_km INTEGER,
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'under_review', 'verified', 'rejected')),
+    rating DECIMAL(3,2) DEFAULT 0.0 CHECK (rating >= 0 AND rating <= 5),
+    review_count INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_agrovets_county ON agrovets(county);
+CREATE INDEX IF NOT EXISTS idx_agrovets_verification ON agrovets(verification_status);
+CREATE INDEX IF NOT EXISTS idx_agrovets_location ON agrovets(latitude, longitude);
+
+-- Agrovet products
+CREATE TABLE IF NOT EXISTS agrovet_products (
+    id SERIAL PRIMARY KEY,
+    agrovet_id INTEGER REFERENCES agrovets(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    description TEXT,
+    price_kes DECIMAL(10,2),
+    currency VARCHAR(10) DEFAULT 'KES',
+    stock_status VARCHAR(20) DEFAULT 'in_stock' CHECK (stock_status IN ('in_stock', 'low_stock', 'out_of_stock', 'pre_order')),
+    image_url TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_agrovet_products_agrovet_id ON agrovet_products(agrovet_id);
+CREATE INDEX IF NOT EXISTS idx_agrovet_products_category ON agrovet_products(category);
+
+-- SACCOs
+CREATE TABLE IF NOT EXISTS saccos (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    registration_number VARCHAR(100) UNIQUE,
+    county VARCHAR(100) NOT NULL,
+    sub_county VARCHAR(100),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    physical_address TEXT,
+    website_url TEXT,
+    description TEXT,
+    membership_requirements TEXT,
+    services_offered TEXT[],
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'under_review', 'verified', 'rejected')),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_saccos_county ON saccos(county);
+CREATE INDEX IF NOT EXISTS idx_saccos_verification ON saccos(verification_status);
+
+-- SACCO financial products
+CREATE TABLE IF NOT EXISTS financial_products (
+    id SERIAL PRIMARY KEY,
+    sacco_id INTEGER REFERENCES saccos(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    product_type VARCHAR(50) NOT NULL CHECK (product_type IN ('loan', 'savings', 'insurance', 'investment')),
+    description TEXT,
+    interest_rate_min DECIMAL(5,2),
+    interest_rate_max DECIMAL(5,2),
+    loan_limit_min_kes INTEGER,
+    loan_limit_max_kes INTEGER,
+    repayment_period_months INTEGER,
+    eligibility_criteria TEXT,
+    required_documents TEXT[],
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_financial_products_sacco_id ON financial_products(sacco_id);
+
+-- Insurance providers
+CREATE TABLE IF NOT EXISTS insurance_providers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    registration_number VARCHAR(100) UNIQUE,
+    county VARCHAR(100) NOT NULL,
+    sub_county VARCHAR(100),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    physical_address TEXT,
+    website_url TEXT,
+    description TEXT,
+    verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'under_review', 'verified', 'rejected')),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_insurance_providers_county ON insurance_providers(county);
+CREATE INDEX IF NOT EXISTS idx_insurance_providers_verification ON insurance_providers(verification_status);
+
+-- Insurance products
+CREATE TABLE IF NOT EXISTS insurance_products (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER REFERENCES insurance_providers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    product_type VARCHAR(50) NOT NULL CHECK (product_type IN ('crop', 'livestock', 'weather', 'comprehensive')),
+    coverage_description TEXT,
+    premium_range_kes VARCHAR(255),
+    eligibility_criteria TEXT,
+    covered_perils TEXT[],
+    claim_process TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_insurance_products_provider_id ON insurance_products(provider_id);
+
+-- Consultations
+CREATE TABLE IF NOT EXISTS consultations (
+    id SERIAL PRIMARY KEY,
+    scan_id VARCHAR(255) REFERENCES scans(scan_id) ON DELETE SET NULL,
+    farmer_id VARCHAR(255) REFERENCES users(uid) ON DELETE CASCADE,
+    agronomist_id VARCHAR(255) REFERENCES users(uid) ON DELETE SET NULL,
+    government_officer_id VARCHAR(255) REFERENCES users(uid) ON DELETE SET NULL,
+    consultation_type VARCHAR(30) NOT NULL CHECK (consultation_type IN ('chat', 'video', 'farm_visit', 'phone', 'agrovet_inquiry', 'sacco_inquiry', 'insurance_inquiry', 'insurance_claim', 'government_support')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'in_progress', 'completed', 'cancelled')),
+    farmer_message TEXT,
+    agronomist_response TEXT,
+    agronomist_diagnosis VARCHAR(255),
+    agronomist_advice TEXT,
+    scheduled_at TIMESTAMP,
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_consultations_farmer_id ON consultations(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_consultations_agronomist_id ON consultations(agronomist_id);
+CREATE INDEX IF NOT EXISTS idx_consultations_status ON consultations(status);
+
+-- Appointments
+CREATE TABLE IF NOT EXISTS appointments (
+    id SERIAL PRIMARY KEY,
+    consultation_id INTEGER REFERENCES consultations(id) ON DELETE CASCADE,
+    farmer_id VARCHAR(255) REFERENCES users(uid) ON DELETE CASCADE,
+    provider_id VARCHAR(255) REFERENCES users(uid) ON DELETE CASCADE,
+    provider_type VARCHAR(20) NOT NULL CHECK (provider_type IN ('agronomist', 'government_officer', 'agrovet')),
+    appointment_date TIMESTAMP NOT NULL,
+    duration_minutes INTEGER DEFAULT 30,
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'confirmed', 'completed', 'cancelled', 'no_show')),
+    notes TEXT,
+    location TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_farmer_id ON appointments(farmer_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_provider_id ON appointments(provider_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(appointment_date);
+
+-- Messages
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    consultation_id INTEGER REFERENCES consultations(id) ON DELETE CASCADE,
+    sender_id VARCHAR(255) NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    receiver_id VARCHAR(255) NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'file', 'system')),
+    content TEXT NOT NULL,
+    attachment_url TEXT,
+    is_read BOOLEAN DEFAULT false,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_consultation_id ON messages(consultation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
+CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+
+-- Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    notification_type VARCHAR(30) NOT NULL CHECK (notification_type IN ('disease_alert', 'agronomist_response', 'consultation_reminder', 'government_announcement', 'agrovet_response', 'insurance_update', 'sacco_update', 'platform')),
+    title VARCHAR(255) NOT NULL,
+    body TEXT NOT NULL,
+    data JSONB,
+    is_read BOOLEAN DEFAULT false,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(notification_type);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+
+-- Agricultural advisories
+CREATE TABLE IF NOT EXISTS agricultural_advisories (
+    id SERIAL PRIMARY KEY,
+    author_id VARCHAR(255) REFERENCES users(uid) ON DELETE SET NULL,
+    author_type VARCHAR(20) NOT NULL CHECK (author_type IN ('government_officer', 'agronomist', 'admin')),
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    crop_types TEXT[],
+    counties TEXT[],
+    severity_level VARCHAR(20) CHECK (severity_level IN ('info', 'warning', 'urgent')),
+    is_published BOOLEAN DEFAULT false,
+    published_at TIMESTAMP,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_advisories_author ON agricultural_advisories(author_id);
+CREATE INDEX IF NOT EXISTS idx_advisories_published ON agricultural_advisories(is_published, published_at);
+
+-- Government programs
+CREATE TABLE IF NOT EXISTS government_programs (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    program_type VARCHAR(50) NOT NULL,
+    target_crops TEXT[],
+    target_counties TEXT[],
+    eligibility_criteria TEXT,
+    benefits_description TEXT,
+    application_start_date TIMESTAMP,
+    application_end_date TIMESTAMP,
+    program_start_date TIMESTAMP,
+    program_end_date TIMESTAMP,
+    contact_person VARCHAR(255),
+    contact_phone VARCHAR(50),
+    contact_email VARCHAR(255),
+    application_url TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_gov_programs_active ON government_programs(is_active);
+CREATE INDEX IF NOT EXISTS idx_gov_programs_dates ON government_programs(application_start_date, application_end_date);
+
+-- Agricultural events
+CREATE TABLE IF NOT EXISTS agricultural_events (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('training', 'field_day', 'exhibition', 'webinar', 'consultation')),
+    organizer_type VARCHAR(20) NOT NULL CHECK (organizer_type IN ('government', 'agronomist', 'sacco', 'insurance', 'agrovet')),
+    organizer_id VARCHAR(255),
+    county VARCHAR(100) NOT NULL,
+    sub_county VARCHAR(100),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    event_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP,
+    venue TEXT,
+    registration_required BOOLEAN DEFAULT false,
+    registration_url TEXT,
+    max_participants INTEGER,
+    is_free BOOLEAN DEFAULT true,
+    price_kes INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_agricultural_events_county ON agricultural_events(county);
+CREATE INDEX IF NOT EXISTS idx_agricultural_events_date ON agricultural_events(event_date);
+
+-- Reviews
+CREATE TABLE IF NOT EXISTS reviews (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    target_type VARCHAR(20) NOT NULL CHECK (target_type IN ('agronomist', 'government_officer', 'agrovet', 'insurance_provider', 'sacco')),
+    target_id INTEGER NOT NULL,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    is_verified_purchase BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
+
+-- Verification requests
+CREATE TABLE IF NOT EXISTS verification_requests (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(uid) ON DELETE CASCADE,
+    requester_type VARCHAR(20) NOT NULL CHECK (requester_type IN ('agronomist', 'government_officer', 'agrovet', 'sacco', 'insurance_provider')),
+    target_id INTEGER,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'under_review', 'verified', 'rejected')),
+    reviewed_by VARCHAR(255) REFERENCES users(uid) ON DELETE SET NULL,
+    review_notes TEXT,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_verification_requests_user_id ON verification_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_verification_requests_status ON verification_requests(status);
+
+-- Locations (shared location master)
+CREATE TABLE IF NOT EXISTS locations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    location_type VARCHAR(50) NOT NULL CHECK (location_type IN ('county', 'sub_county', 'ward', 'town', 'market')),
+    parent_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    county VARCHAR(100),
+    sub_county VARCHAR(100),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_locations_type ON locations(location_type);
+CREATE INDEX IF NOT EXISTS idx_locations_county ON locations(county);
+
+-- Seed sample ecosystem data
+INSERT INTO farmer_profiles (user_id, full_name, county, sub_county, farm_size_hectares, primary_crops, farming_experience_years, phone_number, is_verified)
+VALUES
+    ('demo-farmer-1', 'John Mwangi', 'Kiambu', 'Kikuyu', 2.5, ARRAY['Maize', 'Coffee', 'Avocado'], 15, '+254712345678', true)
+ON CONFLICT (user_id) DO NOTHING;
+
+INSERT INTO agronomists (full_name, professional_title, qualification, specialization, county, sub_county, phone, email, availability, years_of_experience, verification_status, rating, review_count, is_active)
+VALUES
+    ('Dr. Grace Wairimu', 'Senior Agronomist', 'PhD Crop Science', ARRAY['Maize', 'Potato', 'Tomato'], 'Kiambu', 'Kikuyu', '+254723456789', 'grace.wairimu@agri.co.ke', 'available', 12, 'verified', 4.8, 24, true),
+    ('James Kipchoge', 'Plant Pathologist', 'MSc Plant Pathology', ARRAY['Wheat', 'Barley', 'Sorghum'], 'Nakuru', 'Nakuru Town', '+254734567890', 'james.k@agri.co.ke', 'available', 8, 'verified', 4.5, 18, true)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO government_officers (full_name, professional_title, designation, department, county, sub_county, phone, email, verification_status, is_active)
+VALUES
+    ('Hon. Mary Njeri', 'County Agriculture Officer', 'Chief Officer', 'Ministry of Agriculture', 'Kiambu', 'Kiambu Town', '+254745678901', 'mary.njeri@kilimo.go.ke', 'verified', true),
+    ('Mr. Peter Ochieng', 'Agricultural Extension Officer', 'Extension Officer', 'Ministry of Agriculture', 'Kisumu', 'Kisumu Central', '+254756789012', 'peter.o@kilimo.go.ke', 'verified', true)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO saccos (name, registration_number, county, sub_county, phone, email, physical_address, description, membership_requirements, services_offered, verification_status, is_active)
+VALUES
+    ('Kiambu Farmers SACCO', 'SACC-001-2026', 'Kiambu', 'Kikuyu', '+254767890123', 'info@kiambufarmers.co.ke', 'Kikuyu Town, Kiambu', 'Empowering farmers through affordable credit and savings.', 'Must be a resident of Kiambu County with farming activity.', ARRAY['Agricultural Loans', 'Savings', 'Input Financing'], 'verified', true),
+    ('Nakuru Agribusiness SACCO', 'SACC-002-2026', 'Nakuru', 'Nakuru Town', '+254778901234', 'info@nakuruagri.co.ke', 'Nakuru CBD', 'Supporting agribusiness entrepreneurs in Nakuru.', 'Active agribusiness in Nakuru County.', ARRAY['Farm Equipment Loans', 'Crop Insurance', 'Savings'], 'pending', true)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO insurance_providers (name, registration_number, county, sub_county, phone, email, physical_address, description, verification_status, is_active)
+VALUES
+    ('AgriShield Insurance', 'AINS-001-2026', 'Nairobi', 'Westlands', '+254789012345', 'support@agrishield.co.ke', 'Westlands, Nairobi', 'Specialized crop and livestock insurance for smallholder farmers.', 'verified', true),
+    ('Mkulima Protect', 'AINS-002-2026', 'Kisumu', 'Kisumu Central', '+254790123456', 'info@mkulimaprotect.co.ke', 'Kisumu Town', 'Affordable weather-indexed crop insurance.', 'pending', true)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO agricultural_events (title, description, event_type, organizer_type, organizer_id, county, sub_county, event_date, venue, registration_required, is_free, max_participants)
+VALUES
+    ('Modern Maize Farming Techniques', 'Hands-on training on drought-resistant maize varieties and proper spacing.', 'training', 'government', 'gov-1', 'Kiambu', 'Kikuyu', '2026-09-15T09:00:00', 'Kikuyu Agricultural Showground', true, true, 200),
+    ('Coffee Pest Management Field Day', 'Field demonstration on integrated pest management for coffee farms.', 'field_day', 'agronomist', 'agro-1', 'Kiambu', 'Kiambu Town', '2026-09-20T10:00:00', 'Kiambu Research Station', true, true, 150)
+ON CONFLICT DO NOTHING;

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shambadoc/services/api_service.dart';
 import 'disease_model.dart';
@@ -14,7 +15,7 @@ class CloudAIService {
 
   static Future<DiseaseModel?> cloudPredict(File imageFile) async {
     if (_plantIdApiKey.isEmpty) {
-      debugLog('Plant.id API key not set — skipping cloud prediction');
+      debugPrint('Plant.id API key not set — skipping cloud prediction');
       return null;
     }
     try {
@@ -53,7 +54,7 @@ class CloudAIService {
         }
       }
     } catch (e) {
-      debugLog('Cloud predict error: $e');
+      debugPrint('Cloud predict error: $e');
     }
     return null;
   }
@@ -64,7 +65,7 @@ class CloudAIService {
     try {
       await ApiService.logScan(scanData);
     } catch (e) {
-      debugLog('logScan error: $e');
+      debugPrint('logScan error: $e');
     }
   }
 
@@ -81,5 +82,5 @@ class CloudAIService {
         .join('. ');
   }
 
-  static void debugLog(String msg) => print('[CloudAI] $msg');
+  static void debugLog(String msg) => debugPrint('[CloudAI] $msg');
 }

@@ -116,7 +116,7 @@ class _ScanScreenState extends State<ScanScreen>
 
       if (tfResult.confidence < 0.75) {
         final connectivity = await Connectivity().checkConnectivity();
-        if (connectivity != ConnectivityResult.none) {
+        if (!connectivity.contains(ConnectivityResult.none)) {
           final cloudResult = await CloudAIService.cloudPredict(imageFile);
           if (cloudResult != null &&
               cloudResult.confidence > tfResult.confidence) {

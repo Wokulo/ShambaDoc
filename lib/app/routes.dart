@@ -6,6 +6,17 @@ import 'package:shambadoc/features/scan/result_screen.dart';
 import 'package:shambadoc/features/history/history_screen.dart';
 import 'package:shambadoc/features/map/agro_dealer_map.dart';
 import 'package:shambadoc/features/settings/settings_screen.dart';
+import 'package:shambadoc/features/farmer/farmer_dashboard_screen.dart';
+import 'package:shambadoc/features/farmer/farmer_profile_screen.dart';
+import 'package:shambadoc/features/providers/agronomist_list_screen.dart';
+import 'package:shambadoc/features/providers/agrovet_list_screen.dart';
+import 'package:shambadoc/features/providers/sacco_list_screen.dart';
+import 'package:shambadoc/features/providers/insurance_list_screen.dart';
+import 'package:shambadoc/features/providers/government_services_screen.dart';
+import 'package:shambadoc/features/cases/cases_screen.dart';
+import 'package:shambadoc/features/messages/messages_screen.dart';
+import 'package:shambadoc/features/notifications/notifications_screen.dart';
+import 'package:shambadoc/features/search/search_screen.dart';
 
 class AppRoutes {
   static const splash   = '/';
@@ -15,6 +26,17 @@ class AppRoutes {
   static const history  = '/history';
   static const map      = '/map';
   static const settings = '/settings';
+  static const farmerDashboard = '/farmer/dashboard';
+  static const farmerProfile = '/farmer/profile';
+  static const agronomists = '/agronomists';
+  static const agrovets = '/agrovets';
+  static const saccos = '/saccos';
+  static const insurance = '/insurance';
+  static const government = '/government';
+  static const cases = '/cases';
+  static const messages = '/messages';
+  static const notifications = '/notifications';
+  static const search = '/search';
 
   static Map<String, WidgetBuilder> getRoutes() => {
     splash:   (_) => const SplashScreen(),
@@ -24,6 +46,17 @@ class AppRoutes {
     history:  (_) => const HistoryScreen(),
     map:      (_) => const AgroDealerMap(),
     settings: (_) => const SettingsScreen(),
+    farmerDashboard: (_) => const FarmerDashboardScreen(),
+    farmerProfile: (_) => const FarmerProfileScreen(),
+    agronomists: (_) => const AgronomistListScreen(),
+    agrovets: (_) => const AgrovetListScreen(),
+    saccos: (_) => const SaccoListScreen(),
+    insurance: (_) => const InsuranceListScreen(),
+    government: (_) => const GovernmentServicesScreen(),
+    cases: (_) => const CasesScreen(),
+    messages: (_) => const MessagesScreen(),
+    notifications: (_) => const NotificationsScreen(),
+    search: (_) => const SearchScreen(),
   };
 }
 
@@ -111,7 +144,8 @@ class HomeScreenState extends State<HomeScreen> {
     _HomeTab(),
     HistoryScreen(embedded: true),
     AgroDealerMap(embedded: true),
-    SettingsScreen(embedded: true),
+    MessagesScreen(),
+    NotificationsScreen(),
   ];
 
   void switchTo(int i) => setState(() => index = i);
@@ -136,9 +170,13 @@ class HomeScreenState extends State<HomeScreen> {
           selectedIcon: Icon(Icons.store_rounded, color: AppColors.primary),
           label: 'Dealers'),
         NavigationDestination(
-          icon: Icon(Icons.settings_outlined),
-          selectedIcon: Icon(Icons.settings_rounded, color: AppColors.primary),
-          label: 'Settings'),
+          icon: Icon(Icons.chat_bubble_outline_rounded),
+          selectedIcon: Icon(Icons.chat_bubble_rounded, color: AppColors.primary),
+          label: 'Messages'),
+        NavigationDestination(
+          icon: Icon(Icons.notifications_outlined),
+          selectedIcon: Icon(Icons.notifications_rounded, color: AppColors.primary),
+          label: 'Alerts'),
       ],
     ),
   );
@@ -162,6 +200,13 @@ class _HomeTab extends StatelessWidget {
           expandedHeight: 170,
           pinned: true,
           backgroundColor: AppColors.primary,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.person_rounded, color: Colors.white),
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.farmerProfile),
+              tooltip: 'Profile',
+            ),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             background: Container(
               decoration: const BoxDecoration(
@@ -217,9 +262,21 @@ class _HomeTab extends StatelessWidget {
                 onTap: () => _go(context, 1))),
               const SizedBox(width: 12),
               Expanded(child: _QuickTile(
-                icon: Icons.store_rounded, label: 'Agro-Dealers',
-                color: AppColors.accent, bg: const Color(0xFFFFF3E0),
-                onTap: () => _go(context, 2))),
+                icon: Icons.person_rounded, label: 'Agronomists',
+                color: AppColors.primary, bg: const Color(0xFFE8F5E9),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.agronomists))),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: _QuickTile(
+                icon: Icons.store_rounded, label: 'Agrovets',
+                color: AppColors.warning, bg: const Color(0xFFFFF3E0),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.agrovets))),
+              const SizedBox(width: 12),
+              Expanded(child: _QuickTile(
+                icon: Icons.account_balance_rounded, label: 'SACCOs',
+                color: AppColors.info, bg: const Color(0xFFE3F2FD),
+                onTap: () => Navigator.pushNamed(context, AppRoutes.saccos))),
             ]),
             const SizedBox(height: 20),
             Text('Tips for Better Results', style: Theme.of(context).textTheme.titleMedium),

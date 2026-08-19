@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shambadoc/app/theme.dart';
-// import 'package:shambadoc/services/auth_service.dart';
+import 'package:shambadoc/services/auth_service.dart';
 import 'package:shambadoc/services/storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -24,7 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    dynamic user; try { user = null; } catch(e) { user = null; }
+    final user = AuthService().currentUser;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -178,7 +178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
 
           // Sign out
-          if (null != null) ...[
+          if (user != null) ...[
             _SectionHeader(title: 'Account'),
             _SectionCard(children: [
               ListTile(
@@ -187,7 +187,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: const Text('Sign Out',
                     style: TextStyle(color: AppColors.error,
                         fontWeight: FontWeight.w600)),
-                onTap: () {},  // signout disabled
+                 onTap: () async {
+                  await AuthService().signOut();
+                  if (context.mounted) setState(() {});
+                },
               ),
             ]),
           ],
@@ -222,32 +225,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _confirmSignOut(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // await null.signOut();
-              if (context.mounted) setState(() {});
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _SectionHeader extends StatelessWidget {

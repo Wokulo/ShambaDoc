@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -10,7 +11,7 @@ class AuthService {
         await _auth.signInWithCredential(credential);
       },
       verificationFailed: (FirebaseAuthException e) {
-        print('Phone verification failed: ${e.message}');
+        debugPrint('Phone verification failed: ${e.message}');
       },
       codeSent: (String verificationId, int? resendToken) {
         onCodeSent(verificationId);

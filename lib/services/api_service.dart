@@ -1,26 +1,21 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import '../services/api_client.dart';
 
 class ApiService {
-  static const String baseUrl = String.fromEnvironment(
-    'SHAMBADOC_API_URL',
-    defaultValue: 'http://10.0.2.2:3000/api', // 10.0.2.2 = localhost from Android emulator
-  );
-  static const Map<String, String> _headers = {'Content-Type': 'application/json'};
-  static const _timeout = Duration(seconds: 10);
-
-  // ── Dealers ────────────────────────────────────────────────────────────────
-
   static Future<Map<String, dynamic>?> getDealers({
     double? lat, double? lng, double radius = 50,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/dealers').replace(queryParameters: {
-        if (lat != null) 'lat': lat.toString(),
-        if (lng != null) 'lng': lng.toString(),
-        'radius': radius.toString(),
-      });
-      final res = await http.get(uri, headers: _headers).timeout(_timeout);
+      final res = await ApiClient.get(
+        '/dealers',
+        queryParameters: {
+          if (lat != null) 'lat': lat.toString(),
+          if (lng != null) 'lng': lng.toString(),
+          'radius': radius.toString(),
+        },
+      );
       if (res.statusCode == 200) return jsonDecode(res.body);
     } catch (e) {
       _log('getDealers error: $e');
@@ -30,9 +25,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>?> getDealerById(String id) async {
     try {
-      final res = await http
-          .get(Uri.parse('$baseUrl/dealers/$id'), headers: _headers)
-          .timeout(_timeout);
+      final res = await ApiClient.get('/dealers/$id');
       if (res.statusCode == 200) return jsonDecode(res.body);
     } catch (e) {
       _log('getDealerById error: $e');
@@ -40,14 +33,12 @@ class ApiService {
     return null;
   }
 
-  // ── Diagnose ───────────────────────────────────────────────────────────────
-
   static Future<bool> logScan(Map<String, dynamic> data) async {
     try {
-      final res = await http
-          .post(Uri.parse('$baseUrl/diagnose/log'),
-              headers: _headers, body: jsonEncode(data))
-          .timeout(_timeout);
+      final res = await ApiClient.post(
+        '/diagnose/log',
+        body: jsonEncode(data),
+      );
       return res.statusCode == 201 || res.statusCode == 200;
     } catch (e) {
       _log('logScan error: $e');
@@ -61,15 +52,14 @@ class ApiService {
     String? correctDisease,
   }) async {
     try {
-      final res = await http
-          .post(Uri.parse('$baseUrl/diagnose/feedback'),
-              headers: _headers,
-              body: jsonEncode({
-                'scan_id': scanId,
-                'was_correct': wasCorrect,
-                if (correctDisease != null) 'correct_disease': correctDisease,
-              }))
-          .timeout(_timeout);
+      final res = await ApiClient.post(
+        '/diagnose/feedback',
+        body: jsonEncode({
+          'scan_id': scanId,
+          'was_correct': wasCorrect,
+          if (correctDisease != null) 'correct_disease': correctDisease,
+        }),
+      );
       return res.statusCode == 201 || res.statusCode == 200;
     } catch (e) {
       _log('submitFeedback error: $e');
@@ -81,11 +71,13 @@ class ApiService {
     String? county, int days = 30,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/diagnose/stats').replace(queryParameters: {
-        if (county != null) 'county': county,
-        'days': days.toString(),
-      });
-      final res = await http.get(uri, headers: _headers).timeout(_timeout);
+      final res = await ApiClient.get(
+        '/diagnose/stats',
+        queryParameters: {
+          if (county != null) 'county': county,
+          'days': days.toString(),
+        },
+      );
       if (res.statusCode == 200) return jsonDecode(res.body);
     } catch (e) {
       _log('getRegionalStats error: $e');
@@ -93,18 +85,15 @@ class ApiService {
     return null;
   }
 
-  // ── Health check ───────────────────────────────────────────────────────────
-
   static Future<bool> isBackendReachable() async {
     try {
-      final res = await http
-          .get(Uri.parse(baseUrl.replaceAll('/api', '/health')))
-          .timeout(const Duration(seconds: 5));
+      final healthUrl = ApiClient.baseUrl.replaceAll('/api', '/health');
+      final res = await http.get(Uri.parse(healthUrl)).timeout(const Duration(seconds: 5));
       return res.statusCode == 200;
     } catch (_) {
       return false;
     }
   }
 
-  static void _log(String msg) => print('[ApiService] $msg');
+  static void _log(String msg) => debugPrint('[ApiService] $msg');
 }
