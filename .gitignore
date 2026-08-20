@@ -50,3 +50,6 @@ shambadoc_v3.tflite
 assets/models/*.tflite
 *.tflite
 assets/models/*.tflite
+
+# Kotlin
+android/.kotlin/

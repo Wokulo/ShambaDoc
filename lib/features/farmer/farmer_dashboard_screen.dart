@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shambadoc/app/theme.dart';
 import 'package:shambadoc/services/api/farmer_service.dart';
+import 'package:shambadoc/models/farmer_models.dart';
 import 'package:shambadoc/app/routes.dart';
 
 class FarmerDashboardScreen extends StatefulWidget {
@@ -24,10 +25,31 @@ class _FarmerDashboardScreenState extends State<FarmerDashboardScreen> {
     final dashboard = await FarmerService.getDashboard();
     if (mounted) {
       setState(() {
-        _dashboard = dashboard;
+        _dashboard = dashboard ?? _demoDashboard();
         _loading = false;
       });
     }
+  }
+
+  FarmerDashboard _demoDashboard() {
+    final now = DateTime.now();
+    return FarmerDashboard(
+      profile: FarmerProfile(
+        userId: 'demo-user',
+        fullName: 'Demo Farmer',
+        county: 'Nairobi',
+        subCounty: 'Westlands',
+        phoneNumber: '+254 700 000 000',
+        farmingExperienceYears: 5,
+        primaryCrops: const ['Maize', 'Beans', 'Tomatoes'],
+        createdAt: now,
+        updatedAt: now,
+      ),
+      farms: [
+        Farm(userId: 'demo-user', name: 'Demo Farm', cropType: 'Maize', county: 'Nairobi', areaHectares: 2.5, createdAt: now, updatedAt: now),
+      ],
+      recentScans: const [],
+    );
   }
 
   @override
